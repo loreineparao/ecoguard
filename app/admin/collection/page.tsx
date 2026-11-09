@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import CollectionActions from "./CollectionActions";
 import CreateCollectionSchedule from "./CreateCollectionSchedule";
+import AppShell from "@/components/app-shell";
 
 export default async function AdminCollectionPage() {
   const supabase = await createClient();
@@ -51,6 +52,7 @@ export default async function AdminCollectionPage() {
 
   if (schedulesError) {
     return (
+      <AppShell mode="admin" userName={profile.full_name || "MENR Administrator"} email={profile.email || user.email}>
       <main
         style={{
           minHeight: "100vh",
@@ -73,6 +75,7 @@ export default async function AdminCollectionPage() {
           {schedulesError.message}
         </div>
       </main>
+      </AppShell>
     );
   }
 

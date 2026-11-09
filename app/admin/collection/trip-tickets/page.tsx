@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import TripTicketActions from "./TripTicketActions";
 import CreateTripTicket from "./CreateTripTicket";
+import AppShell from "@/components/app-shell";
 
 export default async function AdminTripTicketsPage() {
   const supabase = await createClient();
@@ -77,6 +78,7 @@ export default async function AdminTripTicketsPage() {
   }
 
   return (
+    <AppShell mode="admin" userName="MENR Administrator" email={user.email}>
     <main
       style={{
         maxWidth: "900px",
@@ -193,5 +195,6 @@ export default async function AdminTripTicketsPage() {
         </div>
       )}
     </main>
+    </AppShell>
   );
 }

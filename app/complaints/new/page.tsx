@@ -8,6 +8,7 @@ import {
   saveComplaintLocation,
   getAddressFromCoordinates,
 } from "@/app/actions/locations";
+import ResidentFrame from "@/components/resident-frame";
 
 export default function NewComplaintPage() {
   const router = useRouter();
@@ -200,6 +201,7 @@ if (
   }
 
   return (
+    <ResidentFrame>
     <main
       style={{
         minHeight: "100vh",
@@ -523,5 +525,6 @@ if (
         </form>
       </div>
     </main>
+    </ResidentFrame>
   );
 }

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import CreateReport from "./CreateReport";
+import AppShell from "@/components/app-shell";
 
 export default async function AdminReportsPage() {
   const supabase = await createClient();
@@ -51,6 +52,7 @@ export default async function AdminReportsPage() {
   }
 
   return (
+    <AppShell mode="admin" userName="MENR Administrator" email={user.email}>
     <main
       style={{
         maxWidth: "1000px",
@@ -137,5 +139,6 @@ export default async function AdminReportsPage() {
         </div>
       )}
     </main>
+    </AppShell>
   );
 }

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import PermitDocumentViewer from "./PermitDocumentViewer";
 import PermitActions from "./PermitActions";
+import AppShell from "@/components/app-shell";
 
 export default async function AdminPermitsPage() {
   const supabase = await createClient();
@@ -49,6 +50,7 @@ export default async function AdminPermitsPage() {
 
   if (applicationsError) {
     return (
+      <AppShell mode="admin" userName={profile.full_name || "MENR Administrator"} email={profile.email || user.email}>
       <main
         style={{
           minHeight: "100vh",
@@ -71,6 +73,7 @@ export default async function AdminPermitsPage() {
           {applicationsError.message}
         </div>
       </main>
+      </AppShell>
     );
   }
 

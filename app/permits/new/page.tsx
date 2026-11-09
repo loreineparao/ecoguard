@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { submitPermitApplication } from "@/app/actions/permits";
 import { uploadPermitDocument } from "@/app/actions/permit-documents";
+import ResidentFrame from "@/components/resident-frame";
 
 export default function NewPermitPage() {
   const router = useRouter();
@@ -93,6 +94,7 @@ export default function NewPermitPage() {
   }
 
   return (
+    <ResidentFrame>
     <main
       style={{
         minHeight: "100vh",
@@ -284,5 +286,6 @@ export default function NewPermitPage() {
         </form>
       </div>
     </main>
+    </ResidentFrame>
   );
 }

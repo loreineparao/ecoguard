@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { classifyEnvironmentalConcern } from "@/app/actions/gemini";
+import ResidentFrame from "@/components/resident-frame";
 
 export default function AIAssistantPage() {
   const router = useRouter();
@@ -67,6 +68,7 @@ setResult(response.result);
   }
 
   return (
+    <ResidentFrame>
     <main
       style={{
         minHeight: "100vh",
@@ -249,5 +251,6 @@ setResult(response.result);
         )}
       </div>
     </main>
+    </ResidentFrame>
   );
 }

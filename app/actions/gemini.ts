@@ -163,7 +163,7 @@ ${concern.trim()}
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-3.8-flash",
+    model: "gemini-3.8-flash",
       contents: prompt,
     });
 
@@ -205,15 +205,26 @@ ${concern.trim()}
       success: true,
       result: parsedResult,
     };
-  } catch (error) {
+ } catch (error) {
   console.error("Gemini API error:", error);
+
+  const errorMessage =
+    error instanceof Error ? error.message : String(error);
+
+  if (
+    /503|UNAVAILABLE|high demand|overloaded/i.test(errorMessage)
+  ) {
+    return {
+      success: false,
+      error:
+        "EcoGuard AI is temporarily busy. Please wait a moment and try again.",
+    };
+  }
 
   return {
     success: false,
     error:
-      error instanceof Error
-        ? error.message
-        : "Unknown Gemini API error.",
+      "EcoGuard AI could not process your request. Please try again later.",
   };
 }
 }

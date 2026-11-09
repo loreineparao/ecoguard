@@ -2,6 +2,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getMyComplaintEvidence } from "@/app/actions/evidence";
+import AppShell from "@/components/app-shell";
+import Link from "next/link";
 
 export default async function ComplaintsPage() {
   const supabase = await createClient();
@@ -45,72 +47,32 @@ export default async function ComplaintsPage() {
     })
   );
 
-  return (
-    <main
-      style={{
-        maxWidth: "900px",
-        margin: "0 auto",
-        padding: "40px 20px",
-        fontFamily: "Arial, sans-serif",
-        background: "#f4f7fb",
-        minHeight: "100vh",
-      }}
-    >
-      <h1 style={{ color: "#166534" }}>
-        My Environmental Complaints
-      </h1>
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name, email")
+    .eq("id", user.id)
+    .maybeSingle();
 
-      <p>
-        Track the status of your submitted environmental complaints.
-      </p>
+  return (
+    <AppShell mode="resident" userName={profile?.full_name || "Resident"} email={profile?.email || user.email}>
+      <div className="page-header"><div><p className="eyebrow">Resident portal</p><h1 className="page-title">My complaints</h1><p className="page-subtitle">Track every environmental concern you have submitted.</p></div><Link className="button green" href="/complaints/new">＋ New complaint</Link></div>
 
       {complaintsWithEvidence.length === 0 ? (
-        <p>No complaints submitted yet.</p>
+        <section className="card empty-state">No complaints submitted yet. <Link className="text-link" href="/complaints/new">Submit your first complaint</Link>.</section>
       ) : (
-        <div style={{ marginTop: "30px" }}>
+        <div style={{ display: "grid", gap: 16 }}>
           {complaintsWithEvidence.map((complaint) => (
             <article
               key={complaint.id}
-              style={{
-                background: "white",
-                border: "1px solid #ddd",
-                borderRadius: "10px",
-                padding: "20px",
-                marginBottom: "20px",
-                overflowWrap: "anywhere",
-              }}
+              className="card"
             >
-              <h2>{complaint.category}</h2>
-
-              <p>
-                <strong>Description:</strong>{" "}
-                {complaint.description}
-              </p>
-
-              <p>
-                <strong>Status:</strong> {complaint.status}
-              </p>
-
-              <p>
-                <strong>Assigned Personnel:</strong>{" "}
-                {complaint.assigned_personnel || "Not yet assigned"}
-              </p>
-
-              <p>
-                <strong>Submitted:</strong>{" "}
-                {new Date(complaint.created_at).toLocaleString()}
-              </p>
-
-              <p>
-                <strong>Complaint ID:</strong> {complaint.id}
-              </p>
-
-              <h3 style={{ marginTop: "20px" }}>
-                Uploaded Evidence
-              </h3>
+              <div className="card-title"><h2>{complaint.category}</h2><span className={`badge ${complaint.status.toLowerCase().replace(" ", "-")}`}>{complaint.status}</span></div>
+              <p className="page-subtitle">{complaint.description}</p>
+              <p className="hint">Assigned personnel: {complaint.assigned_personnel || "Not yet assigned"} · Submitted {new Date(complaint.created_at).toLocaleString()}</p>
+              <h3 style={{ color: "var(--navy)", fontSize: 13, marginTop: 22 }}>Uploaded evidence</h3>
 
               {complaint.evidence.length === 0 ? (
-                <p>No evidence available for this complaint.</p>
+                <p className="hint">No evidence available for this complaint.</p>
               ) : (
                 <div
                   style={{
@@ -130,20 +92,11 @@ export default async function ComplaintsPage() {
                           <img
                             src={item.signedUrl}
                             alt="Complaint evidence"
-                            style={{
-                              display: "block",
-                              width: "220px",
-                              maxWidth: "100%",
-                              height: "180px",
-                              objectFit: "contain",
-                              border: "1px solid #ddd",
-                              borderRadius: "8px",
-                              background: "#f9fafb",
-                            }}
+                            style={{ display: "block", width: "220px", maxWidth: "100%", height: "180px", objectFit: "contain", border: "1px solid var(--border)", borderRadius: "8px", background: "#f9fafb" }}
                           />
                         </a>
                       ) : (
-                        <p>
+                        <p className="notice error">
                           Evidence could not be displayed. Please
                           refresh the page and try again.
                         </p>
@@ -156,6 +109,6 @@ export default async function ComplaintsPage() {
           ))}
         </div>
       )}
-    </main>
+    </AppShell>
   );
 }

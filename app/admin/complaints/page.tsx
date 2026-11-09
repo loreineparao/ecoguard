@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import ComplaintActions from "./ComplaintActions";
 import EvidenceViewer from "./EvidenceViewer";
+import AppShell from "@/components/app-shell";
 
 export default async function AdminComplaintsPage() {
   const supabase = await createClient();
@@ -45,6 +46,7 @@ export default async function AdminComplaintsPage() {
 
   if (complaintsError) {
     return (
+
       <main
         style={{
           minHeight: "100vh",
@@ -72,6 +74,7 @@ export default async function AdminComplaintsPage() {
   }
 
   return (
+    <AppShell mode="admin" userName={profile.full_name || "MENR Administrator"} email={profile.email || user.email}>
     <main
       style={{
         minHeight: "100vh",
@@ -204,5 +207,6 @@ export default async function AdminComplaintsPage() {
         </div>
       </div>
     </main>
+    </AppShell>
   );
 }
