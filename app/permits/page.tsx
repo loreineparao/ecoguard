@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getMyPermitApplications } from "@/app/actions/permits";
 import AppShell from "@/components/app-shell";
 import SubmittedRequirements from "@/app/admin/permits/SubmittedRequirements";
-import { ArrowLeft, FileCheck, Plus, TreePine, Calendar } from "lucide-react";
+import { ArrowLeft, Plus, TreePine } from "lucide-react";
 
 export default async function MyPermitsPage() {
   const supabase = await createClient();

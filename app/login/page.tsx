@@ -1,36 +1,122 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  RefreshCw,
+  ShieldCheck,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Read URL query parameters for feedback from /auth/callback
+  const verifiedParam = searchParams.get("verified");
+  const errorParam = searchParams.get("error");
+
+  const defaultMessage =
+    verifiedParam === "true"
+      ? "Your email address has been successfully verified! You may now sign in."
+      : errorParam
+        ? decodeURIComponent(errorParam)
+        : "";
+  const defaultMessageType =
+    verifiedParam === "true"
+      ? "success"
+      : errorParam
+        ? "error"
+        : "";
+  const defaultCanResend = errorParam
+    ? decodeURIComponent(errorParam).toLowerCase().includes("expired") ||
+      decodeURIComponent(errorParam).toLowerCase().includes("invalid")
+    : false;
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(defaultMessage);
+  const [messageType, setMessageType] = useState<"success" | "error" | "">(defaultMessageType);
   const [loading, setLoading] = useState(false);
   const [resetMode, setResetMode] = useState(false);
+
+  // Email confirmation resend states
+  const [canResend, setCanResend] = useState(defaultCanResend);
+  const [resending, setResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  // Cooldown countdown
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
+  async function handleResendConfirmation() {
+    const cleanEmail = email.trim();
+    if (!cleanEmail || resendCooldown > 0) return;
+
+    setResending(true);
+    try {
+      const supabase = createClient();
+      const redirectUrl =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/auth/callback`
+          : undefined;
+
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: cleanEmail,
+        options: {
+          emailRedirectTo: redirectUrl,
+        },
+      });
+
+      if (error) {
+        setMessage(`Could not resend email: ${error.message}`);
+        setMessageType("error");
+      } else {
+        setMessage(`A new verification link was sent to ${cleanEmail}. Check your inbox and Spam folder.`);
+        setMessageType("success");
+        setResendCooldown(60);
+      }
+    } catch {
+      setMessage("Network error while requesting verification email.");
+      setMessageType("error");
+    } finally {
+      setResending(false);
+    }
+  }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
     setMessage("");
+    setMessageType("");
+    setCanResend(false);
 
     const supabase = createClient();
 
     if (resetMode) {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${window.location.origin}/login`,
       });
 
       if (error) {
         setMessage(error.message);
+        setMessageType("error");
       } else {
-        setMessage("If an account exists for that email, a reset link has been sent.");
+        setMessage("If an account exists for that email, a password reset link has been sent.");
+        setMessageType("success");
       }
       setLoading(false);
       return;
@@ -43,6 +129,11 @@ export default function LoginPage() {
 
     if (error) {
       setMessage(error.message);
+      setMessageType("error");
+      // Check if unconfirmed email
+      if (error.message.toLowerCase().includes("email not confirmed")) {
+        setCanResend(true);
+      }
       setLoading(false);
       return;
     }
@@ -106,6 +197,7 @@ export default function LoginPage() {
               placeholder="you@example.com"
               autoComplete="email"
               required
+              disabled={loading}
             />
           </div>
 
@@ -121,6 +213,7 @@ export default function LoginPage() {
                   onClick={() => {
                     setResetMode(true);
                     setMessage("");
+                    setMessageType("");
                   }}
                 >
                   Forgot password?
@@ -135,6 +228,7 @@ export default function LoginPage() {
                   placeholder="Enter your password"
                   autoComplete="current-password"
                   required
+                  disabled={loading}
                 />
                 <button
                   type="button"
@@ -168,11 +262,34 @@ export default function LoginPage() {
 
           {message && (
             <div
-              className={`notice ${message.startsWith("If an") ? "success" : "error"}`}
+              className={`notice ${messageType === "success" || message.startsWith("If an") ? "success" : "error"}`}
               role="alert"
             >
+              {messageType === "success" && (
+                <CheckCircle2 size={15} style={{ display: "inline", verticalAlign: "-2px", marginRight: "6px" }} />
+              )}
               {message}
             </div>
+          )}
+
+          {canResend && (
+            <button
+              type="button"
+              className="button secondary"
+              onClick={handleResendConfirmation}
+              disabled={resending || resendCooldown > 0}
+              style={{ width: "100%", justifyContent: "center", marginTop: "8px", fontSize: "13px" }}
+            >
+              {resending ? (
+                "Sending..."
+              ) : resendCooldown > 0 ? (
+                `Resend confirmation email in ${resendCooldown}s`
+              ) : (
+                <>
+                  <RefreshCw size={13} aria-hidden="true" /> Resend confirmation email
+                </>
+              )}
+            </button>
           )}
         </form>
 
@@ -188,6 +305,7 @@ export default function LoginPage() {
               onClick={() => {
                 setResetMode(false);
                 setMessage("");
+                setMessageType("");
               }}
             >
               Back to sign in
@@ -201,5 +319,21 @@ export default function LoginPage() {
         </div>
       </section>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="auth-page">
+          <div className="auth-card" style={{ textAlign: "center", padding: "40px 20px" }}>
+            <p className="hint">Loading EcoGuard sign-in...</p>
+          </div>
+        </main>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

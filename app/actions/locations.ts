@@ -69,17 +69,48 @@ export async function saveComplaintLocation(
     };
   }
 
-  // 4. Save the location in Supabase
+  // 4. Save the location in Supabase (avoid duplicate location records for the same complaint)
+  const { data: existingLoc } = await supabase
+    .from("locations")
+    .select("id")
+    .eq("complaint_id", complaintId)
+    .maybeSingle();
+
+  if (existingLoc) {
+    const { data: updated, error: updateError } = await supabase
+      .from("locations")
+      .update({
+        latitude,
+        longitude,
+        address: address || null,
+      })
+      .eq("id", existingLoc.id)
+      .select()
+      .single();
+
+    if (updateError) {
+      return {
+        success: false,
+        error: updateError.message,
+      };
+    }
+
+    return {
+      success: true,
+      location: updated,
+    };
+  }
+
   const { data, error } = await supabase
-  .from("locations")
-  .insert({
-    complaint_id: complaintId,
-    latitude,
-    longitude,
-    address: address || null,
-  })
-  .select()
-  .single();
+    .from("locations")
+    .insert({
+      complaint_id: complaintId,
+      latitude,
+      longitude,
+      address: address || null,
+    })
+    .select()
+    .single();
 
   if (error) {
     return {

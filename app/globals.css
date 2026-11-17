@@ -3744,3 +3744,37 @@ h1.page-title {
     max-width: 230px;
   }
 }
+
+/* Form validation feedback */
+.field-error-text {
+  color: #DC2626;
+  font-size: 12px;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+
+.field-hint-text {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+
+.field-success-text {
+  color: var(--primary-green);
+  font-size: 12px;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+
+/* Prevent auto-zooming on iOS and iPad Safari */
+@media screen and (max-width: 768px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
