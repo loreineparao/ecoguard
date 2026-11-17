@@ -18,9 +18,16 @@ export default function ProfileForm({ fullName }: ProfileFormProps) {
     event.preventDefault();
     setMessage("");
     setError("");
+
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setError("Full name is required and cannot be blank.");
+      return;
+    }
+
     setLoading(true);
 
-    const result = await updateProfile(name);
+    const result = await updateProfile(trimmed);
     setLoading(false);
 
     if (!result.success) {
@@ -28,12 +35,12 @@ export default function ProfileForm({ fullName }: ProfileFormProps) {
       return;
     }
 
-    setName(name.trim());
+    setName(trimmed);
     setMessage(result.message ?? "Your profile has been updated successfully.");
   }
 
   return (
-    <form className="settings-form" onSubmit={handleSubmit}>
+    <form className="settings-form" onSubmit={handleSubmit} noValidate>
       <div className="form-field">
         <label htmlFor="settings-full-name">
           Full Name <span aria-hidden="true">*</span>
@@ -41,10 +48,15 @@ export default function ProfileForm({ fullName }: ProfileFormProps) {
         <input
           id="settings-full-name"
           value={name}
-          onChange={(event) => setName(event.target.value)}
+          onChange={(event) => {
+            setName(event.target.value);
+            if (error) setError("");
+          }}
           autoComplete="name"
           disabled={loading}
           required
+          aria-invalid={Boolean(error)}
+          style={error ? { borderColor: "#DC2626" } : undefined}
         />
         <p className="hint">
           This full name appears on your submitted complaints, permit applications, and dashboard greeting.

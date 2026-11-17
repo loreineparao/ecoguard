@@ -126,6 +126,7 @@ export async function submitFullComplaint(
   const address = (formData.get("address") as string) || null;
   const evidenceFile = formData.get("evidence") as File | null;
 
+  // Validate Category
   if (category !== "Illegal Dumping") {
     return {
       success: false,
@@ -133,11 +134,64 @@ export async function submitFullComplaint(
     };
   }
 
-  if (!description) {
+  // Validate Description
+  const trimmedDesc = description.trim();
+  if (!trimmedDesc) {
     return {
       success: false,
       error: "Please describe the environmental incident.",
     };
+  }
+
+  // Validate Location: requires either valid coordinates or a descriptive address/landmark
+  const hasCoordinates =
+    latStr !== null &&
+    lngStr !== null &&
+    Number.isFinite(parseFloat(latStr)) &&
+    Number.isFinite(parseFloat(lngStr));
+  const cleanAddress = address?.trim() || null;
+
+  if (!hasCoordinates && !cleanAddress) {
+    return {
+      success: false,
+      error: "Incident location is required. Please capture GPS coordinates or provide a descriptive address/landmark.",
+    };
+  }
+
+  // Validate Supporting Photo Evidence: REQUIRED
+  const hasEvidenceFile =
+    evidenceFile !== null &&
+    evidenceFile.size > 0 &&
+    evidenceFile.name !== "undefined";
+
+  if (!hasEvidenceFile && !existingComplaintId) {
+    return {
+      success: false,
+      error: "Please upload photographic evidence of the environmental concern.",
+    };
+  }
+
+  if (hasEvidenceFile) {
+    const allowedImageTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/webp",
+    ];
+
+    if (!allowedImageTypes.includes(evidenceFile.type.toLowerCase())) {
+      return {
+        success: false,
+        error: "Invalid photographic evidence format. Only JPG, JPEG, PNG, and WEBP images are allowed.",
+      };
+    }
+
+    if (evidenceFile.size > 5 * 1024 * 1024) {
+      return {
+        success: false,
+        error: "Photo evidence exceeds the 5 MB file size limit.",
+      };
+    }
   }
 
   let complaintId = existingComplaintId;
@@ -203,7 +257,7 @@ export async function submitFullComplaint(
 
   const finalComplaintId: string = complaintId;
 
-  // 2. Save location if coordinates provided
+  // 2. Save location: use GPS coordinates if provided; if only manual address, fallback to Mabini center
   if (latStr && lngStr) {
     const lat = parseFloat(latStr);
     const lng = parseFloat(lngStr);
@@ -213,7 +267,7 @@ export async function submitFullComplaint(
         finalComplaintId,
         lat,
         lng,
-        address
+        cleanAddress
       );
 
       if (!locationRes.success) {
@@ -225,6 +279,23 @@ export async function submitFullComplaint(
           error: `Complaint record #${finalComplaintId.slice(0, 8)} created, but location could not be saved: ${locationRes.error}. Tap 'Retry Submission' to finalize.`,
         };
       }
+    }
+  } else if (cleanAddress) {
+    // When GPS is unavailable, save manual address with Mabini municipal center coordinates
+    const locationRes = await saveComplaintLocation(
+      finalComplaintId,
+      13.7565,
+      120.9405,
+      cleanAddress
+    );
+
+    if (!locationRes.success) {
+      return {
+        success: false,
+        partial: true,
+        complaintId: finalComplaintId,
+        error: `Complaint record #${finalComplaintId.slice(0, 8)} created, but location could not be saved: ${locationRes.error}. Tap 'Retry Submission' to finalize.`,
+      };
     }
   }
 

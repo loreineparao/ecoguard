@@ -32,28 +32,49 @@ export default function CreateTripTicket({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [driverError, setDriverError] = useState("");
+  const [plateError, setPlateError] = useState("");
 
   async function handleSubmit(
     event: React.FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
-
-    setLoading(true);
     setMessage("");
     setError("");
+    setDriverError("");
+    setPlateError("");
+
+    let hasValidationError = false;
+    const cleanDriver = driverName.trim();
+    const cleanPlate = plateNumber.trim();
 
     if (!scheduleId) {
       setError("Please select a collection schedule.");
-      setLoading(false);
+      hasValidationError = true;
+    }
+
+    if (!cleanDriver) {
+      setDriverError("Driver full name is required and cannot be blank.");
+      hasValidationError = true;
+    }
+
+    if (!cleanPlate) {
+      setPlateError("Vehicle plate number is required and cannot be blank.");
+      hasValidationError = true;
+    }
+
+    if (hasValidationError) {
       return;
     }
 
+    setLoading(true);
+
     const result = await createTripTicket(
       scheduleId,
-      estimatedLoad,
+      estimatedLoad.trim(),
       actualCollectionTime,
-      driverName,
-      plateNumber
+      cleanDriver,
+      cleanPlate
     );
 
     if (!result.success) {
@@ -91,7 +112,7 @@ export default function CreateTripTicket({
           No collection schedules are available. Please create a collection schedule first.
         </p>
       ) : (
-        <form className="form-grid" onSubmit={handleSubmit}>
+        <form className="form-grid" onSubmit={handleSubmit} noValidate>
           <div className="form-field full">
             <label htmlFor="schedule">
               Linked Collection Schedule <span aria-hidden="true">*</span>
@@ -122,12 +143,20 @@ export default function CreateTripTicket({
               id="driver-name"
               type="text"
               value={driverName}
-              onChange={(event) =>
-                setDriverName(event.target.value)
-              }
+              onChange={(event) => {
+                setDriverName(event.target.value);
+                if (driverError) setDriverError("");
+              }}
               placeholder="e.g. Juan Perez"
               required
+              aria-invalid={Boolean(driverError)}
+              style={driverError ? { borderColor: "#DC2626" } : undefined}
             />
+            {driverError && (
+              <p className="field-error-text" role="alert">
+                {driverError}
+              </p>
+            )}
           </div>
 
           <div className="form-field">
@@ -138,12 +167,20 @@ export default function CreateTripTicket({
               id="plate-number"
               type="text"
               value={plateNumber}
-              onChange={(event) =>
-                setPlateNumber(event.target.value)
-              }
+              onChange={(event) => {
+                setPlateNumber(event.target.value);
+                if (plateError) setPlateError("");
+              }}
               placeholder="e.g. ABC-1234"
               required
+              aria-invalid={Boolean(plateError)}
+              style={plateError ? { borderColor: "#DC2626" } : undefined}
             />
+            {plateError && (
+              <p className="field-error-text" role="alert">
+                {plateError}
+              </p>
+            )}
           </div>
 
           <div className="form-field">

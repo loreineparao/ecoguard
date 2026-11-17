@@ -13,21 +13,42 @@ export default function CreateCollectionSchedule() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [barangayError, setBarangayError] = useState("");
+  const [timeError, setTimeError] = useState("");
 
   async function handleSubmit(
     event: React.FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
-
-    setLoading(true);
     setMessage("");
     setError("");
+    setBarangayError("");
+    setTimeError("");
+
+    let hasValidationError = false;
+    const cleanBarangay = barangay.trim();
+
+    if (!cleanBarangay) {
+      setBarangayError("Barangay / Area is required and cannot be blank.");
+      hasValidationError = true;
+    }
+
+    if (!collectionTime) {
+      setTimeError("Collection Date and Time is required.");
+      hasValidationError = true;
+    }
+
+    if (hasValidationError) {
+      return;
+    }
+
+    setLoading(true);
 
     const result = await createCollectionSchedule(
-      barangay,
+      cleanBarangay,
       collectionTime,
-      truckId,
-      driverId
+      truckId.trim(),
+      driverId.trim()
     );
 
     if (!result.success) {
@@ -60,7 +81,7 @@ export default function CreateCollectionSchedule() {
         <CalendarPlus size={20} color="var(--primary-green)" aria-hidden="true" />
       </div>
 
-      <form className="form-grid" onSubmit={handleSubmit}>
+      <form className="form-grid" onSubmit={handleSubmit} noValidate>
         <div className="form-field">
           <label htmlFor="barangay">
             Barangay / Area <span aria-hidden="true">*</span>
@@ -69,12 +90,20 @@ export default function CreateCollectionSchedule() {
             id="barangay"
             type="text"
             value={barangay}
-            onChange={(event) =>
-              setBarangay(event.target.value)
-            }
+            onChange={(event) => {
+              setBarangay(event.target.value);
+              if (barangayError) setBarangayError("");
+            }}
             placeholder="e.g. Poblacion, Anilao, Mainaga"
             required
+            aria-invalid={Boolean(barangayError)}
+            style={barangayError ? { borderColor: "#DC2626" } : undefined}
           />
+          {barangayError && (
+            <p className="field-error-text" role="alert">
+              {barangayError}
+            </p>
+          )}
         </div>
 
         <div className="form-field">
@@ -85,11 +114,19 @@ export default function CreateCollectionSchedule() {
             id="collection-time"
             type="datetime-local"
             value={collectionTime}
-            onChange={(event) =>
-              setCollectionTime(event.target.value)
-            }
+            onChange={(event) => {
+              setCollectionTime(event.target.value);
+              if (timeError) setTimeError("");
+            }}
             required
+            aria-invalid={Boolean(timeError)}
+            style={timeError ? { borderColor: "#DC2626" } : undefined}
           />
+          {timeError && (
+            <p className="field-error-text" role="alert">
+              {timeError}
+            </p>
+          )}
         </div>
 
         <div className="form-field">

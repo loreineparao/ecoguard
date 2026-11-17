@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getAuthRedirectUrl } from "@/lib/site-url";
+import { validateEmail } from "@/lib/validators";
 
 function LoginForm() {
   const router = useRouter();
@@ -45,6 +46,8 @@ function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState(defaultMessage);
   const [messageType, setMessageType] = useState<"success" | "error" | "">(defaultMessageType);
@@ -100,16 +103,45 @@ function LoginForm() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setLoading(true);
     setMessage("");
     setMessageType("");
+    setEmailError("");
+    setPasswordError("");
     setCanResend(false);
 
+    const cleanEmail = email.trim();
+    let hasValidationError = false;
+
+    // Validate email
+    if (!cleanEmail) {
+      setEmailError("Please enter your email address.");
+      hasValidationError = true;
+    } else {
+      const emailValidation = validateEmail(cleanEmail);
+      if (!emailValidation.isValid) {
+        setEmailError(emailValidation.error || "Please enter a valid email address.");
+        hasValidationError = true;
+      }
+    }
+
+    // Validate password (only in normal sign-in mode)
+    if (!resetMode) {
+      if (!password) {
+        setPasswordError("Please enter your password.");
+        hasValidationError = true;
+      }
+    }
+
+    if (hasValidationError) {
+      return;
+    }
+
+    setLoading(true);
     const supabase = createClient();
 
     if (resetMode) {
       const redirectUrl = getAuthRedirectUrl("/auth/callback?next=/auth/reset-password");
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
         redirectTo: redirectUrl,
       });
 
@@ -125,17 +157,34 @@ function LoginForm() {
     }
 
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
+      email: cleanEmail,
       password,
     });
 
     if (error) {
-      setMessage(error.message);
-      setMessageType("error");
+      const errMsg = error.message.toLowerCase();
+
       // Check if unconfirmed email
-      if (error.message.toLowerCase().includes("email not confirmed")) {
+      if (errMsg.includes("email not confirmed")) {
+        setMessage("Your email address has not been confirmed yet. Please verify your email or click below to resend the confirmation link.");
+        setMessageType("error");
         setCanResend(true);
+        setPasswordError("");
+        setEmailError("");
+      } else if (
+        errMsg.includes("invalid login credentials") ||
+        errMsg.includes("invalid grant") ||
+        errMsg.includes("invalid_credentials")
+      ) {
+        // Highlight password field with red border and generic error message; do not flag email format as invalid
+        setPasswordError("Unable to sign in. Please check your email and password.");
+        setEmailError("");
+        setMessage("");
+      } else {
+        setMessage(error.message);
+        setMessageType("error");
       }
+
       setLoading(false);
       return;
     }
@@ -186,7 +235,7 @@ function LoginForm() {
           </p>
         </div>
 
-        <form className="auth-form" onSubmit={submit}>
+        <form className="auth-form" onSubmit={submit} noValidate>
           <div className="form-field">
             <label htmlFor="email">
               Email address <span aria-hidden="true">*</span>
@@ -195,12 +244,23 @@ function LoginForm() {
               id="email"
               type="email"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={(event) => {
+                setEmail(event.target.value);
+                if (emailError) setEmailError("");
+              }}
               placeholder="you@example.com"
               autoComplete="email"
               required
               disabled={loading}
+              aria-invalid={Boolean(emailError)}
+              aria-describedby={emailError ? "email-error" : undefined}
+              style={emailError ? { borderColor: "#DC2626" } : undefined}
             />
+            {emailError && (
+              <p id="email-error" className="field-error-text" role="alert">
+                {emailError}
+              </p>
+            )}
           </div>
 
           {!resetMode && (
@@ -216,6 +276,8 @@ function LoginForm() {
                     setResetMode(true);
                     setMessage("");
                     setMessageType("");
+                    setEmailError("");
+                    setPasswordError("");
                   }}
                 >
                   Forgot password?
@@ -226,11 +288,17 @@ function LoginForm() {
                   id="password"
                   type={showPassword ? "text" : "password"}
                   value={password}
-                  onChange={(event) => setPassword(event.target.value)}
+                  onChange={(event) => {
+                    setPassword(event.target.value);
+                    if (passwordError) setPasswordError("");
+                  }}
                   placeholder="Enter your password"
                   autoComplete="current-password"
                   required
                   disabled={loading}
+                  aria-invalid={Boolean(passwordError)}
+                  aria-describedby={passwordError ? "password-error" : undefined}
+                  style={passwordError ? { borderColor: "#DC2626" } : undefined}
                 />
                 <button
                   type="button"
@@ -246,6 +314,11 @@ function LoginForm() {
                   )}
                 </button>
               </div>
+              {passwordError && (
+                <p id="password-error" className="field-error-text" role="alert">
+                  {passwordError}
+                </p>
+              )}
             </div>
           )}
 
@@ -308,6 +381,8 @@ function LoginForm() {
                 setResetMode(false);
                 setMessage("");
                 setMessageType("");
+                setEmailError("");
+                setPasswordError("");
               }}
             >
               Back to sign in

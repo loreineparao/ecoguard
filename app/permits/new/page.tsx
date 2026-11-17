@@ -55,6 +55,7 @@ type SingleDocUploadCardProps = {
   onFileSelect: (file: File | null) => void;
   disabled: boolean;
   onPreview: (file: File) => void;
+  requiredError?: string;
 };
 
 function SingleDocUploadCard({
@@ -67,9 +68,12 @@ function SingleDocUploadCard({
   onFileSelect,
   disabled,
   onPreview,
+  requiredError,
 }: SingleDocUploadCardProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [fileError, setFileError] = useState("");
+
+  const effectiveError = fileError || (requiredError && !file ? requiredError : "");
 
   function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
     setFileError("");
@@ -104,7 +108,10 @@ function SingleDocUploadCard({
   }
 
   return (
-    <div className={`doc-upload-card ${file ? "has-file" : ""} ${fileError ? "is-error" : ""}`}>
+    <div
+      id={`doc-card-${id}`}
+      className={`doc-upload-card ${file ? "has-file" : ""} ${effectiveError ? "is-error" : ""}`}
+    >
       <div className="doc-upload-header">
         <div className={`doc-upload-icon-box ${file ? "has-file" : ""}`}>
           {icon}
@@ -203,7 +210,7 @@ function SingleDocUploadCard({
           </div>
         )}
 
-        {fileError && <p className="doc-error-text" role="alert">{fileError}</p>}
+        {effectiveError && <p className="doc-error-text" role="alert">{effectiveError}</p>}
       </div>
     </div>
   );
@@ -219,6 +226,7 @@ type TreePhotosUploadCardProps = {
   onRemovePhoto: (index: number) => void;
   disabled: boolean;
   onPreviewPhoto: (file: File) => void;
+  requiredError?: string;
 };
 
 function TreePhotosUploadCard({
@@ -231,9 +239,12 @@ function TreePhotosUploadCard({
   onRemovePhoto,
   disabled,
   onPreviewPhoto,
+  requiredError,
 }: TreePhotosUploadCardProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [photoError, setPhotoError] = useState("");
+
+  const effectiveError = photoError || (requiredError && photos.length === 0 ? requiredError : "");
 
   // Create preview URLs with useMemo and clean them up
   const previews = useMemo(() => {
@@ -284,7 +295,10 @@ function TreePhotosUploadCard({
   }
 
   return (
-    <div className={`doc-upload-card ${photos.length > 0 ? "has-file" : ""} ${photoError ? "is-error" : ""}`}>
+    <div
+      id="doc-card-tree-photos"
+      className={`doc-upload-card ${photos.length > 0 ? "has-file" : ""} ${effectiveError ? "is-error" : ""}`}
+    >
       <div className="doc-upload-header">
         <div className={`doc-upload-icon-box ${photos.length > 0 ? "has-file" : ""}`}>
           <Camera size={20} aria-hidden="true" />
@@ -416,7 +430,7 @@ function TreePhotosUploadCard({
           </div>
         )}
 
-        {photoError && <p className="doc-error-text" role="alert">{photoError}</p>}
+        {effectiveError && <p className="doc-error-text" role="alert">{effectiveError}</p>}
       </div>
     </div>
   );
@@ -440,11 +454,14 @@ export default function NewPermitPage() {
   } | null>(null);
 
   // Submission state
+  const isSubmittingRef = useRef(false);
   const [loading, setLoading] = useState(false);
   const [progressText, setProgressText] = useState("");
   const [message, setMessage] = useState("");
   const [submittedAppId, setSubmittedAppId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [nameError, setNameError] = useState("");
+  const [docErrors, setDocErrors] = useState<Record<string, string>>({});
 
   function handlePreviewFile(file: File) {
     const isImage = file.type.startsWith("image/");
@@ -475,41 +492,76 @@ export default function NewPermitPage() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    // Prevent double submission
+    if (isSubmittingRef.current) return;
+
     setMessage("");
     setError("");
+    setNameError("");
+    setDocErrors({});
+
+    let hasValidationError = false;
+    let firstErrorElementId: string | null = null;
 
     if (!applicantName.trim()) {
-      setError("Please enter your applicant full name.");
-      return;
+      setNameError("Please enter your applicant full name.");
+      hasValidationError = true;
+      if (!firstErrorElementId) firstErrorElementId = "applicantName";
     }
 
-    // Validation: All 5 required documents must be uploaded
     const missingDocs: string[] = [];
+    const newDocErrors: Record<string, string> = {};
+
     if (!landTitleFile) {
       missingDocs.push("1. Land Title / Proof of Land Ownership");
+      newDocErrors["landTitle"] = "Please upload the required Land Title / Proof of Land Ownership.";
+      hasValidationError = true;
+      if (!firstErrorElementId) firstErrorElementId = "doc-card-land-title-upload";
     }
     if (!applicationLetterFile) {
       missingDocs.push("2. Formal Application Letter");
+      newDocErrors["applicationLetter"] = "Please upload the required Formal Application Letter.";
+      hasValidationError = true;
+      if (!firstErrorElementId) firstErrorElementId = "doc-card-application-letter-upload";
     }
     if (!barangayClearanceFile) {
       missingDocs.push("3. Barangay Environmental Clearance");
+      newDocErrors["barangayClearance"] = "Please upload the required Barangay Environmental Clearance.";
+      hasValidationError = true;
+      if (!firstErrorElementId) firstErrorElementId = "doc-card-barangay-clearance-upload";
     }
     if (!noObjectionFile) {
       missingDocs.push("4. Resolution Interposing No Objection");
+      newDocErrors["noObjection"] = "Please upload the required Resolution Interposing No Objection.";
+      hasValidationError = true;
+      if (!firstErrorElementId) firstErrorElementId = "doc-card-resolution-no-objection-upload";
     }
     if (treePhotos.length === 0) {
       missingDocs.push("5. Photos of the Trees (at least one photo required)");
+      newDocErrors["treePhotos"] = "Please upload at least one photo of the trees to be cut.";
+      hasValidationError = true;
+      if (!firstErrorElementId) firstErrorElementId = "doc-card-tree-photos";
     }
 
-    if (missingDocs.length > 0) {
+    if (hasValidationError) {
+      setDocErrors(newDocErrors);
       setError(
-        `Please upload all required supporting documents before submitting:\n• ${missingDocs.join(
+        `Please complete all required fields and upload all mandatory supporting documents:\n• ${missingDocs.join(
           "\n• "
         )}`
       );
+      if (firstErrorElementId) {
+        const el = document.getElementById(firstErrorElementId);
+        if (el) {
+          el.focus();
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }
       return;
     }
 
+    isSubmittingRef.current = true;
     setLoading(true);
 
     try {
@@ -626,12 +678,15 @@ export default function NewPermitPage() {
         `Submission encountered an issue: ${errorMessage} Your selected files have been preserved so you can retry.`
       );
     } finally {
+      isSubmittingRef.current = false;
       setLoading(false);
     }
   }
 
   function handleReset() {
     setApplicantName("");
+    setNameError("");
+    setDocErrors({});
     setLandTitleFile(null);
     setApplicationLetterFile(null);
     setBarangayClearanceFile(null);
@@ -717,7 +772,7 @@ export default function NewPermitPage() {
             </div>
           </div>
         ) : (
-          <form className="card" onSubmit={handleSubmit}>
+          <form className="card" onSubmit={handleSubmit} noValidate>
             <div className="card-title">
               <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                 <span className="activity-icon permit">
@@ -755,10 +810,21 @@ export default function NewPermitPage() {
                 type="text"
                 placeholder="e.g., Juan Dela Cruz"
                 value={applicantName}
-                onChange={(e) => setApplicantName(e.target.value)}
+                onChange={(e) => {
+                  setApplicantName(e.target.value);
+                  if (nameError) setNameError("");
+                }}
                 disabled={loading}
                 required
+                aria-invalid={Boolean(nameError)}
+                aria-describedby={nameError ? "applicant-name-error" : undefined}
+                style={nameError ? { borderColor: "#DC2626" } : undefined}
               />
+              {nameError && (
+                <p id="applicant-name-error" className="field-error-text" role="alert">
+                  {nameError}
+                </p>
+              )}
               <span className="hint">
                 Provide your legal name matching your government-issued ID and property documents.
               </span>
@@ -783,9 +849,13 @@ export default function NewPermitPage() {
                   description="Upload a certified true copy of the land title, tax declaration, or deed of sale verifying property ownership."
                   icon={<FileCheck2 size={20} aria-hidden="true" />}
                   file={landTitleFile}
-                  onFileSelect={setLandTitleFile}
+                  onFileSelect={(file) => {
+                    setLandTitleFile(file);
+                    if (file) setDocErrors((prev) => ({ ...prev, landTitle: "" }));
+                  }}
                   disabled={loading}
                   onPreview={handlePreviewFile}
+                  requiredError={docErrors["landTitle"]}
                 />
 
                 {/* 2. Formal Application Letter */}
@@ -796,9 +866,13 @@ export default function NewPermitPage() {
                   description="Formal letter addressed to the Municipal Environment & Natural Resources Officer stating reasons for tree cutting (e.g., public safety, hazard, construction)."
                   icon={<FileText size={20} aria-hidden="true" />}
                   file={applicationLetterFile}
-                  onFileSelect={setApplicationLetterFile}
+                  onFileSelect={(file) => {
+                    setApplicationLetterFile(file);
+                    if (file) setDocErrors((prev) => ({ ...prev, applicationLetter: "" }));
+                  }}
                   disabled={loading}
                   onPreview={handlePreviewFile}
+                  requiredError={docErrors["applicationLetter"]}
                 />
 
                 {/* 3. Barangay Clearance */}
@@ -809,9 +883,13 @@ export default function NewPermitPage() {
                   description="Environmental clearance or barangay resolution issued by the Punong Barangay where the subject tree is located."
                   icon={<ShieldCheck size={20} aria-hidden="true" />}
                   file={barangayClearanceFile}
-                  onFileSelect={setBarangayClearanceFile}
+                  onFileSelect={(file) => {
+                    setBarangayClearanceFile(file);
+                    if (file) setDocErrors((prev) => ({ ...prev, barangayClearance: "" }));
+                  }}
                   disabled={loading}
                   onPreview={handlePreviewFile}
+                  requiredError={docErrors["barangayClearance"]}
                 />
 
                 {/* 4. Resolution Interposing No Objection */}
@@ -822,9 +900,13 @@ export default function NewPermitPage() {
                   description="Upload a copy of the Resolution Interposing No Objection issued by the appropriate barangay or authorized local government office, as required by the MENR Office."
                   icon={<FileCheck2 size={20} aria-hidden="true" />}
                   file={noObjectionFile}
-                  onFileSelect={setNoObjectionFile}
+                  onFileSelect={(file) => {
+                    setNoObjectionFile(file);
+                    if (file) setDocErrors((prev) => ({ ...prev, noObjection: "" }));
+                  }}
                   disabled={loading}
                   onPreview={handlePreviewFile}
+                  requiredError={docErrors["noObjection"]}
                 />
 
                 {/* 5. Photos of the Trees */}
@@ -834,10 +916,14 @@ export default function NewPermitPage() {
                   title="Photos of the Trees"
                   description="Clear photographs showing the full tree, trunk base, defect/hazard condition, and proximity to buildings, roads, or overhead power lines."
                   photos={treePhotos}
-                  onAddPhotos={handleAddTreePhotos}
+                  onAddPhotos={(newPhotos) => {
+                    handleAddTreePhotos(newPhotos);
+                    setDocErrors((prev) => ({ ...prev, treePhotos: "" }));
+                  }}
                   onRemovePhoto={handleRemoveTreePhoto}
                   disabled={loading}
                   onPreviewPhoto={handlePreviewFile}
+                  requiredError={docErrors["treePhotos"]}
                 />
               </div>
             </div>

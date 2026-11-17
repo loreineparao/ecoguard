@@ -51,6 +51,9 @@ export default function NewComplaintPage() {
   const [progressText, setProgressText] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [descriptionError, setDescriptionError] = useState("");
+  const [locationFieldError, setLocationFieldError] = useState("");
+  const [evidenceError, setEvidenceError] = useState("");
 
   // Synchronous submission lock and retry ID tracking
   const isSubmittingRef = useRef(false);
@@ -133,18 +136,80 @@ export default function NewComplaintPage() {
 
     // Guard against double clicks and concurrent submissions
     if (isSubmittingRef.current) return;
-    isSubmittingRef.current = true;
 
     setMessage("");
     setError("");
+    setDescriptionError("");
+    setLocationFieldError("");
+    setEvidenceError("");
 
+    let hasValidationError = false;
+    let firstErrorField: string | null = null;
+
+    // 1. Description validation: cannot be blank or contain only spaces
     const trimmedDesc = description.trim();
     if (!trimmedDesc) {
-      setError("Please describe the environmental incident.");
-      isSubmittingRef.current = false;
+      setDescriptionError("Please describe the environmental incident.");
+      hasValidationError = true;
+      if (!firstErrorField) firstErrorField = "description";
+    }
+
+    // 2. Incident location validation: GPS coordinates or manual address required
+    const hasCoordinates =
+      location !== null &&
+      Number.isFinite(location.latitude) &&
+      Number.isFinite(location.longitude);
+    const hasManualAddress = manualAddress.trim().length > 0;
+    const hasResolvedAddress = locationAddress.trim().length > 0;
+
+    if (!hasCoordinates && !hasManualAddress && !hasResolvedAddress) {
+      setLocationFieldError(
+        "Incident location is required. Please capture your GPS coordinates or enter a landmark/address."
+      );
+      hasValidationError = true;
+      if (!firstErrorField) firstErrorField = "manualAddress";
+    }
+
+    // 3. Supporting photo evidence validation: REQUIRED
+    if (!evidenceFile && !activeComplaintIdRef.current) {
+      setEvidenceError(
+        "Please upload photographic evidence of the environmental concern."
+      );
+      hasValidationError = true;
+      if (!firstErrorField) firstErrorField = "evidence";
+    } else if (evidenceFile) {
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+      ];
+      if (!allowedTypes.includes(evidenceFile.type.toLowerCase())) {
+        setEvidenceError(
+          "Please upload an image in JPG, JPEG, PNG, or WEBP format."
+        );
+        hasValidationError = true;
+        if (!firstErrorField) firstErrorField = "evidence";
+      } else if (evidenceFile.size > 5 * 1024 * 1024) {
+        setEvidenceError("Photo evidence must be 5 MB or smaller.");
+        hasValidationError = true;
+        if (!firstErrorField) firstErrorField = "evidence";
+      }
+    }
+
+    if (hasValidationError) {
+      setError("Please complete all required fields and upload photographic evidence.");
+      if (firstErrorField) {
+        const el = document.getElementById(firstErrorField);
+        if (el) {
+          el.focus();
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }
       return;
     }
 
+    isSubmittingRef.current = true;
     setLoading(true);
     setProgressText("Submitting complaint to MENR Office...");
 
@@ -248,7 +313,7 @@ export default function NewComplaintPage() {
             </div>
           </div>
 
-          <form className="form-grid" onSubmit={handleSubmit}>
+          <form className="form-grid" onSubmit={handleSubmit} noValidate>
             <div className="form-field full">
               <label htmlFor="category">Complaint category</label>
               <input id="category" value="Illegal Dumping" readOnly />
@@ -261,12 +326,23 @@ export default function NewComplaintPage() {
               <textarea
                 id="description"
                 value={description}
-                onChange={(event) => setDescription(event.target.value)}
+                onChange={(event) => {
+                  setDescription(event.target.value);
+                  if (descriptionError) setDescriptionError("");
+                }}
                 placeholder="Describe what occurred, waste types observed, and any other relevant details."
                 rows={6}
                 disabled={loading}
                 required
+                aria-invalid={Boolean(descriptionError)}
+                aria-describedby={descriptionError ? "description-error" : undefined}
+                style={descriptionError ? { borderColor: "#DC2626" } : undefined}
               />
+              {descriptionError && (
+                <p id="description-error" className="field-error-text" role="alert">
+                  {descriptionError}
+                </p>
+              )}
               <p className="hint">
                 Do not include unnecessary personal identity information.
               </p>
@@ -274,7 +350,9 @@ export default function NewComplaintPage() {
 
             {/* Geolocation Section */}
             <div className="form-field full">
-              <label>Incident location (GPS Geo-tag)</label>
+              <label>
+                Incident location (GPS Geo-tag or Landmark) <span aria-hidden="true">*</span>
+              </label>
               <p className="hint">
                 Coordinates help MENR inspectors find and assess the site accurately.
               </p>
@@ -282,7 +360,7 @@ export default function NewComplaintPage() {
               <div
                 style={{
                   background: "#F8FAFC",
-                  border: "1px solid var(--border)",
+                  border: locationFieldError ? "1px solid #DC2626" : "1px solid var(--border)",
                   borderRadius: "10px",
                   padding: "14px 16px",
                   marginTop: "6px",
@@ -387,36 +465,87 @@ export default function NewComplaintPage() {
                     htmlFor="manualAddress"
                     style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-secondary)", display: "block", marginBottom: "4px" }}
                   >
-                    Manual Barangay / Landmark Fallback (Optional)
+                    Manual Barangay / Landmark Fallback {location ? "(Optional)" : "(Required if GPS is unavailable)"}
                   </label>
                   <input
                     id="manualAddress"
                     type="text"
                     value={manualAddress}
-                    onChange={(e) => setManualAddress(e.target.value)}
+                    onChange={(e) => {
+                      setManualAddress(e.target.value);
+                      if (locationFieldError) setLocationFieldError("");
+                    }}
                     placeholder="e.g., Near Barangay Hall, Anilao East, Mabini"
                     disabled={loading}
-                    style={{ fontSize: "13px", padding: "8px 12px", width: "100%" }}
+                    aria-invalid={Boolean(locationFieldError)}
+                    style={{
+                      fontSize: "13px",
+                      padding: "8px 12px",
+                      width: "100%",
+                      borderColor: locationFieldError ? "#DC2626" : undefined,
+                    }}
                   />
+                  {locationFieldError && (
+                    <p className="field-error-text" role="alert" style={{ marginTop: "6px" }}>
+                      {locationFieldError}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
 
             {/* Photo Evidence */}
             <div className="form-field full">
-              <label htmlFor="evidence">Supporting photo evidence</label>
+              <label htmlFor="evidence">
+                Supporting photographic evidence <span aria-hidden="true">*</span>
+              </label>
               <input
                 id="evidence"
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
                 disabled={loading}
-                onChange={(event) =>
-                  setEvidenceFile(event.target.files?.[0] ?? null)
-                }
+                aria-invalid={Boolean(evidenceError)}
+                aria-describedby={evidenceError ? "evidence-error" : undefined}
+                style={evidenceError ? { borderColor: "#DC2626" } : undefined}
+                onChange={(event) => {
+                  const selected = event.target.files?.[0] ?? null;
+                  if (!selected) {
+                    setEvidenceFile(null);
+                    setEvidenceError("Please upload photographic evidence of the environmental concern.");
+                    return;
+                  }
+
+                  const allowedTypes = [
+                    "image/jpeg",
+                    "image/jpg",
+                    "image/png",
+                    "image/webp",
+                  ];
+                  if (!allowedTypes.includes(selected.type.toLowerCase())) {
+                    setEvidenceError("Please upload an image in JPG, JPEG, PNG, or WEBP format.");
+                    setEvidenceFile(null);
+                    event.target.value = "";
+                    return;
+                  }
+
+                  if (selected.size > 5 * 1024 * 1024) {
+                    setEvidenceError("Photo evidence must be 5 MB or smaller.");
+                    setEvidenceFile(null);
+                    event.target.value = "";
+                    return;
+                  }
+
+                  setEvidenceFile(selected);
+                  setEvidenceError("");
+                }}
               />
+              {evidenceError && (
+                <p id="evidence-error" className="field-error-text" role="alert">
+                  {evidenceError}
+                </p>
+              )}
               <p className="hint">
-                <Upload size={13} aria-hidden="true" /> Optional. JPG, PNG, or
-                WEBP up to 5 MB.
+                <Upload size={13} aria-hidden="true" /> Required. JPG, JPEG, PNG, or WEBP up to 5 MB.
               </p>
             </div>
 

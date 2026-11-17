@@ -20,11 +20,32 @@ export async function submitPermitApplication(
     };
   }
 
-  // Validate applicant name
-  if (!applicantName || applicantName.trim().length === 0) {
+  // Validate applicant name: cannot be blank or contain only whitespace
+  const trimmedName = applicantName.trim();
+  if (!trimmedName) {
     return {
       success: false,
-      error: "Applicant name is required.",
+      error: "Applicant full name is required and cannot be blank.",
+    };
+  }
+
+  // Idempotency: prevent accidental duplicate permit submissions from rapid clicking (15s window)
+  const recentWindow = new Date(Date.now() - 15 * 1000).toISOString();
+  const { data: recentDuplicate } = await supabase
+    .from("permit_applications")
+    .select()
+    .eq("user_id", user.id)
+    .eq("applicant_name", trimmedName)
+    .gte("submitted_at", recentWindow)
+    .order("submitted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (recentDuplicate) {
+    return {
+      success: true,
+      application: recentDuplicate,
+      reused: true,
     };
   }
 
@@ -33,7 +54,7 @@ export async function submitPermitApplication(
     .from("permit_applications")
     .insert({
       user_id: user.id,
-      applicant_name: applicantName.trim(),
+      applicant_name: trimmedName,
       documentary_requirements: documentaryRequirements,
       application_status: "Pending",
     })

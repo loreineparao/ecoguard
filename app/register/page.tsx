@@ -19,6 +19,7 @@ import { getAuthRedirectUrl } from "@/lib/site-url";
 
 export default function RegisterPage() {
   const [fullName, setFullName] = useState("");
+  const [fullNameError, setFullNameError] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -63,23 +64,26 @@ export default function RegisterPage() {
     setMessageType("");
     setResendMessage("");
 
+    let hasError = false;
+
     // Validate Full Name
     if (!fullName.trim()) {
-      setMessage("Please enter your full name.");
-      setMessageType("error");
-      return;
+      setFullNameError("Please enter your full name.");
+      hasError = true;
     }
 
     // Validate Email
     if (!emailValidation.isValid) {
-      setMessage(emailValidation.error || "Please enter a valid email address.");
-      setMessageType("error");
-      return;
+      hasError = true;
     }
 
     // Validate Password
     if (!passwordValidation.isValid) {
-      setMessage(passwordValidation.error || "Password must be at least 6 characters.");
+      hasError = true;
+    }
+
+    if (hasError) {
+      setMessage("Please complete all required fields correctly.");
       setMessageType("error");
       return;
     }
@@ -287,12 +291,29 @@ export default function RegisterPage() {
                 id="full-name"
                 type="text"
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                onChange={(e) => {
+                  setFullName(e.target.value);
+                  if (fullNameError) setFullNameError("");
+                }}
+                onBlur={() => {
+                  if (!fullName.trim()) {
+                    setFullNameError("Please enter your full name.");
+                  }
+                }}
                 placeholder="Juan Dela Cruz"
                 autoComplete="name"
                 required
                 disabled={loading}
+                aria-invalid={!!fullNameError}
+                aria-describedby={fullNameError ? "full-name-error" : undefined}
+                style={fullNameError ? { borderColor: "#DC2626" } : undefined}
               />
+              {fullNameError && (
+                <p id="full-name-error" className="field-error-text" role="alert">
+                  <AlertCircle size={13} style={{ display: "inline", verticalAlign: "-2px", marginRight: "4px" }} />
+                  {fullNameError}
+                </p>
+              )}
             </div>
 
             {/* Email Address with Validation */}
@@ -316,12 +337,12 @@ export default function RegisterPage() {
                 aria-invalid={emailTouched && !emailValidation.isValid}
                 aria-describedby={emailTouched && emailValidation.error ? "email-error" : undefined}
                 style={
-                  emailTouched && !emailValidation.isValid && email.length > 0
+                  emailTouched && !emailValidation.isValid
                     ? { borderColor: "#DC2626" }
                     : undefined
                 }
               />
-              {emailTouched && email.length > 0 && !emailValidation.isValid && (
+              {emailTouched && !emailValidation.isValid && (
                 <p id="email-error" className="field-error-text" role="alert">
                   <AlertCircle size={13} style={{ display: "inline", verticalAlign: "-2px", marginRight: "4px" }} />
                   {emailValidation.error}
@@ -360,7 +381,7 @@ export default function RegisterPage() {
                     passwordTouched && passwordValidation.error ? "password-error" : "password-hint"
                   }
                   style={
-                    passwordTouched && !passwordValidation.isValid && password.length > 0
+                    passwordTouched && !passwordValidation.isValid
                       ? { borderColor: "#DC2626" }
                       : undefined
                   }
@@ -381,7 +402,7 @@ export default function RegisterPage() {
                 </button>
               </div>
 
-              {passwordTouched && password.length > 0 && !passwordValidation.isValid && (
+              {passwordTouched && !passwordValidation.isValid && (
                 <p id="password-error" className="field-error-text" role="alert">
                   <AlertCircle size={13} style={{ display: "inline", verticalAlign: "-2px", marginRight: "4px" }} />
                   {passwordValidation.error}
