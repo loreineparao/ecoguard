@@ -12,16 +12,26 @@ export async function GET(request: Request) {
     | "invite"
     | "magiclink"
     | null;
-  const next = requestUrl.searchParams.get("next") || "/dashboard";
+  const rawNext = requestUrl.searchParams.get("next");
 
-  // Determine correct public origin (respecting Vercel / reverse proxy headers)
+  // Open-redirect protection: ensure destination is relative and strictly local
+  let safeNext = "/dashboard";
+  if (rawNext && rawNext.startsWith("/") && !rawNext.startsWith("//")) {
+    safeNext = rawNext;
+  }
+
+  const isPasswordRecovery = type === "recovery" || safeNext.includes("reset-password");
+
+  // Determine correct public origin (respecting Vercel x-forwarded-host)
   const forwardedHost = request.headers.get("x-forwarded-host");
   const isLocalEnv = process.env.NODE_ENV === "development";
   const origin = isLocalEnv
     ? requestUrl.origin
     : forwardedHost
       ? `https://${forwardedHost}`
-      : requestUrl.origin;
+      : process.env.NEXT_PUBLIC_SITE_URL
+        ? process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "")
+        : requestUrl.origin;
 
   const supabase = await createClient();
 
@@ -29,25 +39,35 @@ export async function GET(request: Request) {
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}?verified=true`);
+      if (isPasswordRecovery) {
+        return NextResponse.redirect(`${origin}/auth/reset-password`);
+      }
+      return NextResponse.redirect(`${origin}${safeNext}?verified=true`);
     }
     console.error("Auth callback code exchange error:", error.message);
   }
 
-  // 2. Handle token_hash verification (OTP / email confirm link)
+  // 2. Handle token_hash verification (OTP / email confirm link / recovery)
   if (token_hash && type) {
     const { error } = await supabase.auth.verifyOtp({
       token_hash,
       type,
     });
     if (!error) {
-      return NextResponse.redirect(`${origin}${next}?verified=true`);
+      if (isPasswordRecovery) {
+        return NextResponse.redirect(`${origin}/auth/reset-password`);
+      }
+      return NextResponse.redirect(`${origin}${safeNext}?verified=true`);
     }
     console.error("Auth callback verifyOtp error:", error.message);
   }
 
   // 3. Fallback when parameters are missing or exchange failed
+  const errorMsg = isPasswordRecovery
+    ? "Password reset link has expired or is invalid. Please request a new link."
+    : "Verification link has expired or is invalid. Please sign in or request a new confirmation email.";
+
   return NextResponse.redirect(
-    `${origin}/login?error=Verification%20link%20has%20expired%20or%20is%20invalid.%20Please%20sign%20in%20or%20request%20a%20new%20confirmation%20email.`
+    `${origin}/login?error=${encodeURIComponent(errorMsg)}`
   );
 }

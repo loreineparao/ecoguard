@@ -13,23 +13,27 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { getAuthRedirectUrl } from "@/lib/site-url";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Read URL query parameters for feedback from /auth/callback
+  // Read URL query parameters for feedback from /auth/callback and reset flow
   const verifiedParam = searchParams.get("verified");
   const errorParam = searchParams.get("error");
+  const messageParam = searchParams.get("message");
 
   const defaultMessage =
     verifiedParam === "true"
       ? "Your email address has been successfully verified! You may now sign in."
-      : errorParam
-        ? decodeURIComponent(errorParam)
-        : "";
+      : messageParam === "password_reset_success"
+        ? "Your password has been successfully updated! You can now sign in with your new password."
+        : errorParam
+          ? decodeURIComponent(errorParam)
+          : "";
   const defaultMessageType =
-    verifiedParam === "true"
+    verifiedParam === "true" || messageParam === "password_reset_success"
       ? "success"
       : errorParam
         ? "error"
@@ -68,10 +72,7 @@ function LoginForm() {
     setResending(true);
     try {
       const supabase = createClient();
-      const redirectUrl =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/auth/callback`
-          : undefined;
+      const redirectUrl = getAuthRedirectUrl("/auth/callback");
 
       const { error } = await supabase.auth.resend({
         type: "signup",
@@ -107,8 +108,9 @@ function LoginForm() {
     const supabase = createClient();
 
     if (resetMode) {
+      const redirectUrl = getAuthRedirectUrl("/auth/callback?next=/auth/reset-password");
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/login`,
+        redirectTo: redirectUrl,
       });
 
       if (error) {
@@ -238,9 +240,9 @@ function LoginForm() {
                   title={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? (
-                    <EyeOff size={18} aria-hidden="true" />
-                  ) : (
                     <Eye size={18} aria-hidden="true" />
+                  ) : (
+                    <EyeOff size={18} aria-hidden="true" />
                   )}
                 </button>
               </div>

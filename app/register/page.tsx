@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { validateEmail, validatePassword } from "@/lib/validators";
+import { getAuthRedirectUrl } from "@/lib/site-url";
 
 export default function RegisterPage() {
   const [fullName, setFullName] = useState("");
@@ -91,10 +92,7 @@ export default function RegisterPage() {
       const cleanName = fullName.trim();
 
       // Configure redirect URL to /auth/callback
-      const redirectUrl =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/auth/callback`
-          : undefined;
+      const redirectUrl = getAuthRedirectUrl("/auth/callback");
 
       const { data, error } = await supabase.auth.signUp({
         email: cleanEmail,
@@ -149,10 +147,7 @@ export default function RegisterPage() {
 
     try {
       const supabase = createClient();
-      const redirectUrl =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/auth/callback`
-          : undefined;
+      const redirectUrl = getAuthRedirectUrl("/auth/callback");
 
       const { error } = await supabase.auth.resend({
         type: "signup",
@@ -379,9 +374,9 @@ export default function RegisterPage() {
                   tabIndex={0}
                 >
                   {showPassword ? (
-                    <EyeOff size={18} aria-hidden="true" />
-                  ) : (
                     <Eye size={18} aria-hidden="true" />
+                  ) : (
+                    <EyeOff size={18} aria-hidden="true" />
                   )}
                 </button>
               </div>
