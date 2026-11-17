@@ -1,5 +1,70 @@
 import Link from "next/link";
+import Image from "next/image";
+import {
+  ArrowRight,
+  MapPin,
+  ShieldCheck,
+} from "lucide-react";
 
 export default function Home() {
-  return <main className="landing-page"><div className="landing-nav"><div className="auth-brand"><span className="brand-mark">E</span><strong>EcoGuard</strong></div><div><Link className="landing-login" href="/login">Sign in</Link><Link className="button green" href="/register">Get started</Link></div></div><section className="landing-hero"><div><p className="eyebrow">Environmental services · Mabini, Batangas</p><h1>Better communities start with <span>better action.</span></h1><p className="landing-copy">EcoGuard connects residents with the MENR Office to report environmental concerns, manage permits, and keep our municipality moving forward.</p><div className="landing-actions"><Link href="/register" className="button green">Create resident account →</Link><Link href="/login" className="button secondary">Sign in to portal</Link></div></div><div className="landing-panel"><div className="landing-panel-top"><span className="status-dot" /> Live service overview</div><div className="mini-stat"><strong>Environmental reporting</strong><span>Report illegal dumping with location and photo evidence.</span></div><div className="mini-stat"><strong>Transparent applications</strong><span>Track your tree cutting permit from submission to decision.</span></div><div className="mini-stat"><strong>AI-assisted guidance</strong><span>Find the right EcoGuard service for your concern.</span></div></div></section><footer className="landing-footer">EcoGuard · An AI-enabled environmental complaint and service management system for the MENR Office.</footer></main>;
+  return (
+    <main className="landing-page">
+      <nav className="landing-nav" aria-label="Public navigation">
+        <Link className="landing-brand" href="/">
+          <span className="brand-mark">
+            <ShieldCheck size={22} aria-hidden="true" />
+          </span>
+          <span>
+            <strong>EcoGuard</strong>
+            <small>Mabini, Batangas</small>
+          </span>
+        </Link>
+        <div className="landing-nav-actions">
+          <Link className="landing-login" href="/login">
+            Sign in
+          </Link>
+          <Link className="button green" href="/login">
+            Resident Portal <ArrowRight size={15} aria-hidden="true" />
+          </Link>
+        </div>
+      </nav>
+
+      <section className="landing-hero">
+        <div className="landing-hero-copy">
+          <p className="eyebrow">
+            <MapPin size={13} aria-hidden="true" /> MENR SERVICES • MUNICIPALITY OF MABINI
+          </p>
+          <h1>
+            Better communities start with <span>better action.</span>
+          </h1>
+          <p className="landing-copy">
+            EcoGuard connects residents with the MENR Office to seamlessly report concerns, issue permits, and track community requests in real time.
+          </p>
+          <div className="landing-actions">
+            <Link href="/login" className="button green">
+              Open Resident Portal <ArrowRight size={16} aria-hidden="true" />
+            </Link>
+            <Link href="/login" className="button secondary">
+              Report an Issue
+            </Link>
+          </div>
+        </div>
+
+        <div className="landing-seal-container">
+          <Image
+            src="/images/mabini-logo.png"
+            alt="Official Seal of the Municipality of Mabini, Batangas"
+            width={510}
+            height={510}
+            priority
+            className="landing-seal-image"
+          />
+        </div>
+      </section>
+
+      <footer className="landing-footer">
+        EcoGuard · Environmental Management System · MENR Office, Municipality of Mabini, Batangas
+      </footer>
+    </main>
+  );
 }

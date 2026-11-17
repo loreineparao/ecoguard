@@ -2,17 +2,24 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  LocateFixed,
+  LoaderCircle,
+  Upload,
+  MessageSquare,
+} from "lucide-react";
 import { createComplaint } from "@/app/actions/complaints";
 import { uploadEvidence } from "@/app/actions/evidence";
 import {
-  saveComplaintLocation,
   getAddressFromCoordinates,
+  saveComplaintLocation,
 } from "@/app/actions/locations";
 import ResidentFrame from "@/components/resident-frame";
+import Link from "next/link";
 
 export default function NewComplaintPage() {
   const router = useRouter();
-
   const [description, setDescription] = useState("");
   const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
   const [location, setLocation] = useState<{
@@ -28,45 +35,32 @@ export default function NewComplaintPage() {
 
   function handleGetLocation() {
     setLocationError("");
-
     if (!navigator.geolocation) {
-      setLocationError(
-        "Geolocation is not supported by this browser."
-      );
+      setLocationError("Geolocation is not supported by this browser.");
       return;
     }
 
     setLocationLoading(true);
-
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const latitude = position.coords.latitude;
-        const longitude = position.coords.longitude;
-
-        setLocation({ latitude, longitude });
+      async ({ coords }) => {
+        const nextLocation = {
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+        };
+        setLocation(nextLocation);
         setLocationAddress("");
-        setLocationError("");
-
         try {
           const result = await getAddressFromCoordinates(
-            latitude,
-            longitude
+            coords.latitude,
+            coords.longitude
           );
-
-          
-if (
-  result.success &&
-  typeof result.address === "string"
-) {
-  setLocationAddress(result.address);
-} else {
-  setLocationError(
-    "error" in result
-      ? result.error ??
-        "Location captured, but the address could not be detected."
-      : "Location captured, but the address could not be detected."
-  );
-}
+          if (result.success && typeof result.address === "string") {
+            setLocationAddress(result.address);
+          } else {
+            setLocationError(
+              "Location captured, but the address name could not be resolved."
+            );
+          }
         } catch {
           setLocationError(
             "Location captured, but the address lookup failed."
@@ -76,455 +70,232 @@ if (
         }
       },
       (geoError) => {
-        let errorMessage =
-          "Unable to get your location. Please try again.";
-
-        if (geoError.code === geoError.PERMISSION_DENIED) {
-          errorMessage =
-            "Location permission was denied. Please allow location access in your browser.";
-        } else if (
-          geoError.code === geoError.POSITION_UNAVAILABLE
-        ) {
-          errorMessage =
-            "Your current location is unavailable.";
-        } else if (geoError.code === geoError.TIMEOUT) {
-          errorMessage =
-            "Getting your location took too long. Please try again.";
-        }
-
-        setLocationError(errorMessage);
+        setLocationError(
+          geoError.code === geoError.PERMISSION_DENIED
+            ? "Location permission was denied. Please allow location access in your browser."
+            : geoError.code === geoError.POSITION_UNAVAILABLE
+              ? "Your current location is unavailable."
+              : "Getting your location took too long. Please try again."
+        );
         setLocationLoading(false);
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0,
-      }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   }
 
-  async function handleSubmit(
-    event: React.FormEvent<HTMLFormElement>
-  ) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
     setMessage("");
     setError("");
-
     if (!description.trim()) {
-      setError("Please describe the illegal dumping incident.");
+      setError("Please describe the environmental incident.");
       return;
     }
 
     setLoading(true);
-
-    // 1. Create the complaint first
-    const result = await createComplaint(
-      "Illegal Dumping",
-      description.trim()
-    );
-
-    if (!result.success) {
+    const result = await createComplaint("Illegal Dumping", description.trim());
+    if (!result.success || !result.complaint?.id) {
       setLoading(false);
-      setError(result.error ?? "Unable to submit the complaint.");
+      setError(
+        result.error ??
+          "Complaint was created, but no complaint ID was returned."
+      );
       return;
     }
 
-    // 2. Get the newly created complaint ID
-    const complaintId = result.complaint?.id;
-
-    if (!complaintId) {
-      setLoading(false);
-      setError("Complaint was created, but no complaint ID was returned.");
-      return;
-    }
-
-    // 3. Upload evidence if the resident selected a photo
     if (evidenceFile) {
-      const evidenceResult = await uploadEvidence(
-        complaintId,
+      const uploadResult = await uploadEvidence(
+        result.complaint.id,
         evidenceFile
       );
-
-      if (!evidenceResult.success) {
+      if (!uploadResult.success) {
         setLoading(false);
         setError(
-          `Complaint was created, but the photo could not be uploaded. ${
-            evidenceResult.error ?? ""
-          }`
+          `Complaint was created, but the photo could not be uploaded. ${uploadResult.error ?? ""}`
         );
         return;
       }
     }
 
-    // 3. Save the complaint location if one was captured
     if (location) {
       const locationResult = await saveComplaintLocation(
-  complaintId,
-  location.latitude,
-  location.longitude,
-  locationAddress || null
-);
-
+        result.complaint.id,
+        location.latitude,
+        location.longitude,
+        locationAddress || null
+      );
       if (!locationResult.success) {
-        console.error(
-          "Complaint location save failed:",
-          locationResult.error
-        );
-
-        setError(
-          `Complaint was created, but its location could not be saved. ${
-            locationResult.error ?? "Please try again."
-          }`
-        );
-
         setLoading(false);
+        setError(
+          `Complaint was created, but its location could not be saved. ${locationResult.error ?? "Please try again."}`
+        );
         return;
       }
     }
 
-    // 4. Everything succeeded
     setLoading(false);
-
     setMessage(
       evidenceFile
         ? "Illegal dumping complaint and supporting photo submitted successfully."
         : "Illegal dumping complaint submitted successfully."
     );
-
     setDescription("");
     setEvidenceFile(null);
-
-    setTimeout(() => {
-      router.push("/complaints");
-    }, 1500);
+    setTimeout(() => router.push("/complaints"), 1500);
   }
 
   return (
     <ResidentFrame>
-    <main
-      style={{
-        minHeight: "100vh",
-        padding: "40px 20px",
-        background: "#939393",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: "700px",
-          margin: "0 auto",
-          background: "grey",
-          padding: "30px",
-          borderRadius: "12px",
-          boxShadow: "0 4px 15px rgba(0,0,0,0.08)",
-        }}
-      >
-        <h1
-          style={{
-            fontSize: "28px",
-            fontWeight: "700",
-            marginBottom: "10px",
-          }}
-        >
-          Illegal Dumping Complaint
-        </h1>
+      <div className="form-page-container">
+        <div className="page-header">
+          <div>
+            <p className="eyebrow">RESIDENT PORTAL • MABINI</p>
+            <h1 className="page-title">Submit a Complaint</h1>
+            <p className="page-subtitle">
+              Help protect Mabini’s environment by reporting illegal dumping.
+            </p>
+          </div>
+          <div className="page-header-actions">
+            <Link className="button secondary" href="/dashboard">
+              <ArrowLeft size={16} aria-hidden="true" /> Back to Dashboard
+            </Link>
+          </div>
+        </div>
 
-        <p
-          style={{
-            color: "#2c2c2c",
-            lineHeight: "1.6",
-            marginBottom: "25px",
-          }}
-        >
-          Submit an environmental complaint about illegal
-          dumping. Please provide a clear description of the
-          incident and, if available, supporting photographic
-          evidence.
-        </p>
-
-        <form onSubmit={handleSubmit}>
-          {/* CATEGORY */}
-
-          <label
-            htmlFor="category"
-            style={{
-              display: "block",
-              fontWeight: "600",
-              marginBottom: "8px",
-            }}
-          >
-            Complaint Category
-          </label>
-
-          <input
-            id="category"
-            type="text"
-            value="Illegal Dumping"
-            disabled
-            style={{
-              width: "100%",
-              padding: "12px",
-              border: "1px solid #ccc",
-              borderRadius: "8px",
-              background: "#f3f4f6",
-              boxSizing: "border-box",
-              marginBottom: "20px",
-            }}
-          />
-
-          {/* DESCRIPTION */}
-
-          <label
-            htmlFor="description"
-            style={{
-              display: "block",
-              fontWeight: "600",
-              marginBottom: "8px",
-            }}
-          >
-            Description
-          </label>
-
-          <textarea
-            id="description"
-            value={description}
-            onChange={(event) =>
-              setDescription(event.target.value)
-            }
-            placeholder="Describe what happened, such as where the illegal dumping occurred and what you observed."
-            rows={7}
-            disabled={loading}
-            style={{
-              width: "100%",
-              padding: "12px",
-              border: "1px solid #ccc",
-              borderRadius: "8px",
-              resize: "vertical",
-              fontSize: "15px",
-              boxSizing: "border-box",
-            }}
-          />
-
-          <p
-            style={{
-              fontSize: "13px",
-              color: "#777",
-              marginTop: "8px",
-              lineHeight: "1.5",
-            }}
-          >
-            Do not include sensitive information that is not
-            required for this description. Your account
-            information is handled separately by EcoGuard.
-          </p>
-
-{/* LOCATION */}
-
-<div style={{ marginTop: "20px" }}>
-  <label
-    style={{
-      display: "block",
-      fontWeight: "600",
-      marginBottom: "8px",
-    }}
-  >
-    Complaint Location
-  </label>
-
-  <p
-    style={{
-      fontSize: "13px",
-      color: "#555",
-      marginBottom: "10px",
-      lineHeight: "1.5",
-    }}
-  >
-    Capture the location where the illegal dumping occurred.
-    Your browser will ask for permission to access your location.
-  </p>
-
-  <button
-    type="button"
-    onClick={handleGetLocation}
-    disabled={loading || locationLoading}
-    style={{
-      width: "100%",
-      padding: "12px",
-      border: "1px solid #ccc",
-      borderRadius: "8px",
-      background: "#fff",
-      color: "#333",
-      cursor:
-        loading || locationLoading
-          ? "not-allowed"
-          : "pointer",
-    }}
-  >
-    {locationLoading
-      ? "Getting location..."
-      : location
-        ? "Refresh My Location"
-        : "Get My Location"}
-  </button>
-
-  {location && (
-    <p
-      style={{
-        marginTop: "10px",
-        color: "#166534",
-        fontSize: "13px",
-      }}
-    >
-      Location captured successfully.
-      <br />
-      Latitude: {location.latitude.toFixed(6)}
-      <br />
-      Longitude: {location.longitude.toFixed(6)}
-      {locationAddress && (
-        <>
-          <br />
-          Address: {locationAddress}
-        </>
-      )}
-    </p>
-  )}
-
-  {locationError && (
-    <p
-      style={{
-        marginTop: "10px",
-        color: "#991b1b",
-        fontSize: "13px",
-      }}
-    >
-      {locationError}
-    </p>
-  )}
-</div>
-
-          {/* EVIDENCE */}
-
-          <label
-            htmlFor="evidence"
-            style={{
-              display: "block",
-              fontWeight: "600",
-              marginTop: "20px",
-              marginBottom: "8px",
-            }}
-          >
-            Supporting Photo
-          </label>
-
-          <input
-            id="evidence"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            disabled={loading}
-            onChange={(event) => {
-              const file = event.target.files?.[0] ?? null;
-              setEvidenceFile(file);
-            }}
-            style={{
-              width: "100%",
-              padding: "10px",
-              border: "1px solid #ccc",
-              borderRadius: "8px",
-              boxSizing: "border-box",
-              background: "#fff",
-            }}
-          />
-
-          <p
-            style={{
-              fontSize: "13px",
-              color: "#777",
-              marginTop: "8px",
-              lineHeight: "1.5",
-            }}
-          >
-            Optional. Only JPG, PNG, and WEBP images up to 5 MB
-            are allowed.
-          </p>
-
-          {/* ERROR */}
-
-          {error && (
-            <div
-              style={{
-                marginTop: "20px",
-                padding: "14px",
-                background: "#fee2e2",
-                color: "#991b1b",
-                borderRadius: "8px",
-              }}
-            >
-              {error}
+        <section className="card form-card">
+          <div className="form-intro">
+            <div className="form-icon">
+              <MessageSquare size={22} aria-hidden="true" />
             </div>
-          )}
-
-          {/* SUCCESS */}
-
-          {message && (
-            <div
-              style={{
-                marginTop: "20px",
-                padding: "14px",
-                background: "#dcfce7",
-                color: "#166534",
-                borderRadius: "8px",
-              }}
-            >
-              {message}
+            <div>
+              <h2>Report Environmental Concern</h2>
+              <p className="hint">
+                Required fields are marked with <strong>*</strong>. Your report
+                is securely routed to the MENR Office.
+              </p>
             </div>
-          )}
+          </div>
 
-          {/* SUBMIT */}
+          <form className="form-grid" onSubmit={handleSubmit}>
+            <div className="form-field full">
+              <label htmlFor="category">Complaint category</label>
+              <input id="category" value="Illegal Dumping" readOnly />
+            </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: "100%",
-              marginTop: "20px",
-              padding: "14px",
-              border: "none",
-              borderRadius: "8px",
-              background: loading ? "#999" : "#16a34a",
-              color: "white",
-              fontSize: "16px",
-              fontWeight: "600",
-              cursor: loading ? "not-allowed" : "pointer",
-            }}
-          >
-            {loading
-              ? "Submitting..."
-              : "Submit Illegal Dumping Complaint"}
-          </button>
+            <div className="form-field full">
+              <label htmlFor="description">
+                Incident description <span aria-hidden="true">*</span>
+              </label>
+              <textarea
+                id="description"
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+                placeholder="Describe what occurred, waste types observed, and any other relevant details."
+                rows={6}
+                disabled={loading}
+                required
+              />
+              <p className="hint">
+                Do not include unnecessary personal identity information.
+              </p>
+            </div>
 
-          {/* CANCEL */}
+            <div className="form-field full">
+              <label>Incident location (Geo-tag)</label>
+              <p className="hint">
+                Attach exact GPS coordinates to help MENR inspectors find the
+                site quickly.
+              </p>
+              <button
+                className="button secondary gps-capture-btn"
+                type="button"
+                onClick={handleGetLocation}
+                disabled={loading || locationLoading}
+              >
+                {locationLoading ? (
+                  <LoaderCircle className="spin" size={16} aria-hidden="true" />
+                ) : (
+                  <LocateFixed size={16} aria-hidden="true" />
+                )}
+                {locationLoading
+                  ? "Capturing location..."
+                  : location
+                    ? "Refresh GPS location"
+                    : "Capture my GPS location"}
+              </button>
+              {location && (
+                <p
+                  className="hint form-confirmation"
+                  style={{ color: "var(--primary-green)", marginTop: "6px" }}
+                >
+                  ✓ GPS Coordinates: {location.latitude.toFixed(5)},{" "}
+                  {location.longitude.toFixed(5)}
+                  {locationAddress ? ` (${locationAddress})` : ""}
+                </p>
+              )}
+              {locationError && (
+                <p
+                  className="notice error"
+                  style={{ margin: "6px 0 0" }}
+                  role="alert"
+                >
+                  {locationError}
+                </p>
+              )}
+            </div>
 
-          <button
-            type="button"
-            onClick={() => router.push("/complaints")}
-            disabled={loading}
-            style={{
-              width: "100%",
-              marginTop: "10px",
-              padding: "12px",
-              border: "1px solid #ccc",
-              borderRadius: "8px",
-              background: "white",
-              color: "#333",
-              fontSize: "15px",
-              cursor: loading ? "not-allowed" : "pointer",
-            }}
-          >
-            Cancel
-          </button>
-        </form>
+            <div className="form-field full">
+              <label htmlFor="evidence">Supporting photo evidence</label>
+              <input
+                id="evidence"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                disabled={loading}
+                onChange={(event) =>
+                  setEvidenceFile(event.target.files?.[0] ?? null)
+                }
+              />
+              <p className="hint">
+                <Upload size={13} aria-hidden="true" /> Optional. JPG, PNG, or
+                WEBP up to 5 MB.
+              </p>
+            </div>
+
+            {error && (
+              <div className="notice error full" role="alert">
+                {error}
+              </div>
+            )}
+            {message && (
+              <div className="notice success full" role="status">
+                {message}
+              </div>
+            )}
+
+            <div className="form-actions full">
+              <Link
+                className={`button secondary ${loading ? "disabled" : ""}`}
+                href="/dashboard"
+                aria-disabled={loading}
+                tabIndex={loading ? -1 : undefined}
+                style={loading ? { pointerEvents: "none", opacity: 0.6 } : undefined}
+              >
+                Cancel
+              </Link>
+              <button className="button green" type="submit" disabled={loading}>
+                {loading ? (
+                  <>
+                    <LoaderCircle className="spin" size={16} aria-hidden="true" />
+                    <span>Submitting...</span>
+                  </>
+                ) : (
+                  <span>Submit Complaint</span>
+                )}
+              </button>
+            </div>
+          </form>
+        </section>
       </div>
-    </main>
     </ResidentFrame>
   );
 }

@@ -4,7 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function uploadPermitDocument(
   applicationId: string,
-  file: File
+  file: File,
+  categoryLabel?: string
 ) {
   const supabase = await createClient();
 
@@ -37,7 +38,7 @@ export async function uploadPermitDocument(
   if (file.size > 5 * 1024 * 1024) {
     return {
       success: false,
-      error: "File size must not exceed 5 MB.",
+      error: `File "${file.name}" exceeds the maximum allowed size of 5 MB.`,
     };
   }
 
@@ -52,7 +53,7 @@ export async function uploadPermitDocument(
   if (!allowedTypes.includes(file.type)) {
     return {
       success: false,
-      error: "Only PDF, JPG, PNG, and WEBP files are allowed.",
+      error: `File "${file.name}" has an unsupported format. Only PDF, JPG, PNG, and WEBP files are allowed.`,
     };
   }
 
@@ -108,14 +109,18 @@ export async function uploadPermitDocument(
     };
   }
 
-  // Save document information in the database
+  // Save document information in the database with humanized category label
+  const storedFileName = categoryLabel
+    ? `[${categoryLabel}] ${file.name}`
+    : file.name;
+
   const { data: document, error: documentError } =
     await supabase
       .from("permit_documents")
       .insert({
         application_id: applicationId,
         user_id: user.id,
-        file_name: file.name,
+        file_name: storedFileName,
         file_path: filePath,
         content_type: file.type,
       })

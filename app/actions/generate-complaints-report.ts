@@ -1,110 +1,36 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { generateReportAction } from "@/app/actions/reports";
 
-export async function generateComplaintsReport() {
-  const supabase = await createClient();
+export async function generateComplaintsReport(startDate?: string, endDate?: string) {
+  const result = await generateReportAction({
+    reportType: "Environmental Complaints Report",
+    startDate,
+    endDate,
+  });
 
-  // Check if user is logged in
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  if (!result.success) {
     return {
       success: false,
-      error: "You must be logged in.",
-    };
-  }
-
-  // Check user's role
-  const { data: profile, error: profileError } =
-    await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle();
-
-  if (profileError) {
-    return {
-      success: false,
-      error: profileError.message,
-    };
-  }
-
-  if (!profile) {
-    return {
-      success: false,
-      error: "User profile not found.",
-    };
-  }
-
-  // Only admins can generate reports
-  if (profile.role !== "admin") {
-    return {
-      success: false,
-      error: "Only administrators can generate reports.",
-    };
-  }
-
-  // Get all complaints
-  const { data: complaints, error: complaintsError } =
-    await supabase
-      .from("complaints")
-      .select("id, category, status, created_at");
-
-  if (complaintsError) {
-    return {
-      success: false,
-      error: complaintsError.message,
-    };
-  }
-
-  const totalComplaints = complaints.length;
-
-  const pendingComplaints = complaints.filter(
-    (complaint) =>
-      complaint.status === "Pending"
-  ).length;
-
-  const underReviewComplaints = complaints.filter(
-    (complaint) =>
-      complaint.status === "Under Review"
-  ).length;
-
-  const resolvedComplaints = complaints.filter(
-    (complaint) =>
-      complaint.status === "Resolved"
-  ).length;
-
-  // Create report record
-  const { data: report, error: reportError } =
-    await supabase
-      .from("reports")
-      .insert({
-        report_type: "Environmental Complaints Report",
-        generated_by: user.id,
-      })
-      .select()
-      .single();
-
-  if (reportError) {
-    return {
-      success: false,
-      error: reportError.message,
+      error: result.error,
     };
   }
 
   return {
     success: true,
-
-    report,
-
-    summary: {
-      totalComplaints,
-      pendingComplaints,
-      underReviewComplaints,
-      resolvedComplaints,
+    report: {
+      id: result.reportId,
+      report_type: result.reportType,
+      generated_at: result.generatedAt,
+      generated_by: result.generatedByName,
     },
+    summary: {
+      totalComplaints: result.summary?.totalCount ?? 0,
+      pendingComplaints: result.summary?.metric1.value ?? 0,
+      underReviewComplaints: result.summary?.metric2.value ?? 0,
+      resolvedComplaints: result.summary?.metric3.value ?? 0,
+      otherComplaints: result.summary?.metric4?.value ?? 0,
+    },
+    records: result.rows ?? [],
   };
 }

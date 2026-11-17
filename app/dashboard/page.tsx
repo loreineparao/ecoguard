@@ -1,56 +1,377 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
+import {
+  ArrowRight,
+  CalendarDays,
+  CheckCircle2,
+  Clock3,
+  FileCheck2,
+  FileText,
+  MapPin,
+  MessageSquare,
+  Plus,
+  Timer,
+  Truck,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import AppShell from "@/components/app-shell";
 
-type Complaint = { id: string; category: string; status: string; created_at: string };
+type Complaint = {
+  id: string;
+  category: string;
+  status: string;
+  created_at: string;
+};
+
+type Permit = {
+  id: string;
+  applicant_name: string;
+  application_status: string;
+  submitted_at: string | null;
+};
+
+type Schedule = {
+  id: string;
+  barangay: string;
+  collection_time: string;
+  truck_id: string | null;
+};
+
+type Activity = {
+  id: string;
+  title: string;
+  type: "Complaint" | "Permit";
+  date: string;
+  status: string;
+};
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   if (!user) redirect("/login");
 
-  const [{ data: profile }, { data: complaints }] = await Promise.all([
-    supabase.from("profiles").select("full_name, email, role").eq("id", user.id).maybeSingle(),
-    supabase.from("complaints").select("id, category, status, created_at").eq("user_id", user.id).order("created_at", { ascending: false }),
+  const [
+    { data: profile },
+    { data: complaints },
+    { data: permits },
+    { data: schedules, error: schedulesError },
+  ] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("full_name, email, role")
+      .eq("id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("complaints")
+      .select("id, category, status, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("permit_applications")
+      .select("id, applicant_name, application_status, submitted_at")
+      .eq("user_id", user.id)
+      .order("submitted_at", { ascending: false }),
+    supabase
+      .from("collection_schedules")
+      .select("id, barangay, collection_time, truck_id")
+      .order("collection_time", { ascending: true }),
   ]);
+
   if (profile?.role === "admin") redirect("/admin");
 
-  const items = (complaints ?? []) as Complaint[];
-  const count = (status: string) => items.filter((item) => item.status === status).length;
-  const name = profile?.full_name || user.user_metadata?.full_name || "Resident";
+  const complaintItems = (complaints ?? []) as Complaint[];
+  const permitItems = (permits ?? []) as Permit[];
+  const scheduleItems = (schedules ?? []) as Schedule[];
+
+  const name =
+    profile?.full_name || user.user_metadata?.full_name || "Resident";
+
+  const activity: Activity[] = [
+    ...complaintItems.map((item) => ({
+      id: item.id,
+      title: item.category,
+      type: "Complaint" as const,
+      date: item.created_at,
+      status: item.status,
+    })),
+    ...permitItems.map((item) => ({
+      id: item.id,
+      title: item.applicant_name ? `${item.applicant_name} (Tree Cutting)` : "Tree Cutting Permit",
+      type: "Permit" as const,
+      date: item.submitted_at ?? "",
+      status: item.application_status,
+    })),
+  ]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 6);
 
   return (
-    <AppShell mode="resident" userName={name} email={profile?.email ?? user.email}>
-      <div className="page-header">
-        <div><p className="eyebrow">Resident overview</p><h1 className="page-title">Good day, {name.split(" ")[0]}.</h1><p className="page-subtitle">Stay informed and make a difference in your community.</p></div>
-        <Link className="button green" href="/complaints/new">＋ Submit a complaint</Link>
+    <AppShell
+      mode="resident"
+      userName={name}
+      email={profile?.email ?? user.email}
+    >
+      <div className="page-header" style={{ marginBottom: "24px" }}>
+        <div>
+          <p className="eyebrow">RESIDENT PORTAL • MABINI, BATANGAS</p>
+          <h1 className="page-title">Resident Dashboard</h1>
+          <p className="page-subtitle">
+            A clear view of your environmental requests and community services.
+          </p>
+        </div>
       </div>
+
+      {/* Welcome Banner */}
+      <section className="welcome-banner">
+        <div>
+          <p className="banner-eyebrow">WELCOME BACK</p>
+          <h2>GOOD DAY, {name.toUpperCase()}.</h2>
+          <p>
+            Stay informed and make a positive impact in your local community.
+          </p>
+        </div>
+        <Link className="button banner-button" href="/complaints/new">
+          <Plus size={16} aria-hidden="true" /> Submit New Report
+        </Link>
+      </section>
+
+      {/* Statistics Cards */}
       <div className="stats-grid">
-        <Stat label="Total complaints" value={items.length} icon="▤" />
-        <Stat label="Pending" value={count("Pending")} icon="◷" />
-        <Stat label="Under review" value={count("Under Review")} icon="◌" />
-        <Stat label="Resolved" value={count("Resolved")} icon="✓" green />
+        <Stat
+          label="TOTAL FILED"
+          value={complaintItems.length}
+          icon={<FileText size={18} aria-hidden="true" />}
+          tone="filed"
+        />
+        <Stat
+          label="PENDING"
+          value={countStatus(complaintItems, "Pending")}
+          icon={<Timer size={18} aria-hidden="true" />}
+          tone="pending"
+        />
+        <Stat
+          label="UNDER REVIEW"
+          value={countStatus(complaintItems, "Under Review")}
+          icon={<Clock3 size={18} aria-hidden="true" />}
+          tone="review"
+        />
+        <Stat
+          label="RESOLVED"
+          value={countStatus(complaintItems, "Resolved")}
+          icon={<CheckCircle2 size={18} aria-hidden="true" />}
+          tone="resolved"
+        />
       </div>
+
+      {/* Content Grid: Recent Activity (Left) & Quick Actions + Schedules (Right Stack) */}
       <div className="content-grid">
+        {/* Left Column: Recent Complaint Activity */}
         <section className="card">
-          <div className="card-title"><h2>Recent complaint activity</h2><Link className="text-link" href="/complaints">View all</Link></div>
-          {items.length === 0 ? <div className="empty-state">You have not submitted a complaint yet.</div> : <div className="table-wrap"><table className="data-table"><thead><tr><th>Category</th><th>Submitted</th><th>Status</th></tr></thead><tbody>{items.slice(0, 5).map((item) => <tr key={item.id}><td><strong>{item.category}</strong><div className="muted-id">{item.id.slice(0, 8)}…</div></td><td>{new Date(item.created_at).toLocaleDateString()}</td><td><span className={`badge ${item.status.toLowerCase().replace(" ", "-")}`}>{item.status}</span></td></tr>)}</tbody></table></div>}
-        </section>
-        <aside className="card">
-          <div className="card-title"><h2>Quick actions</h2></div>
-          <div className="quick-actions">
-            <Link href="/complaints/new" className="quick-action"><span className="stat-icon">＋</span><span><strong>Report an issue</strong><small className="muted-id">Submit an environmental complaint</small></span></Link>
-            <Link href="/permits/new" className="quick-action"><span className="stat-icon">♧</span><span><strong>Apply for a permit</strong><small className="muted-id">Start a tree cutting application</small></span></Link>
-            <Link href="/ai-assistant" className="quick-action"><span className="stat-icon">✦</span><span><strong>Ask EcoGuard AI</strong><small className="muted-id">Get guidance on your concern</small></span></Link>
+          <div className="card-title">
+            <div>
+              <h2>Recent Complaint Activity</h2>
+              <p className="hint">
+                Track status updates directly from the MENR Office.
+              </p>
+            </div>
+            <Link className="text-link" href="/complaints">
+              View All <ArrowRight size={13} aria-hidden="true" />
+            </Link>
           </div>
-        </aside>
+
+          {activity.length === 0 ? (
+            <div className="empty-state">
+              You have no recent complaints or permit applications.
+            </div>
+          ) : (
+            <div className="activity-list">
+              {activity.map((item) => (
+                <Link
+                  className="activity-row"
+                  href={item.type === "Complaint" ? "/complaints" : "/permits"}
+                  key={`${item.type}-${item.id}`}
+                >
+                  <span
+                    className={`activity-icon ${item.type.toLowerCase()}`}
+                  >
+                    {item.type === "Complaint" ? (
+                      <MessageSquare size={17} aria-hidden="true" />
+                    ) : (
+                      <FileCheck2 size={17} aria-hidden="true" />
+                    )}
+                  </span>
+                  <div className="activity-copy">
+                    <strong>{item.title}</strong>
+                    <small>
+                      {item.type} · Ref ID: {item.id.slice(0, 8)}…
+                    </small>
+                  </div>
+                  <span className="activity-date">
+                    {item.date
+                      ? new Date(item.date).toLocaleDateString()
+                      : "Date unavailable"}
+                  </span>
+                  <span className={`badge ${statusClass(item.status)}`}>
+                    {item.status}
+                  </span>
+                  <ArrowRight
+                    className="activity-arrow"
+                    size={15}
+                    aria-hidden="true"
+                  />
+                </Link>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* Right Column Stack: Quick Actions & Compact Schedule Preview */}
+        <div className="dashboard-right-stack">
+          {/* Quick Actions */}
+          <aside className="card">
+            <div className="card-title">
+              <div>
+                <h2>Quick Actions</h2>
+                <p className="hint">Start an environmental service request.</p>
+              </div>
+            </div>
+            <div className="quick-actions">
+              <Link href="/complaints/new" className="quick-action">
+                <span className="stat-icon" style={{ background: "#E0F2FE", color: "#0284C7" }}>
+                  <Plus size={17} aria-hidden="true" />
+                </span>
+                <div>
+                  <strong>Report an Issue</strong>
+                  <small>Submit an illegal dumping or environmental concern</small>
+                </div>
+                <ArrowRight size={15} color="#CBD5E0" aria-hidden="true" />
+              </Link>
+
+              <Link href="/permits/new" className="quick-action">
+                <span className="stat-icon" style={{ background: "var(--light-green)", color: "var(--primary-green)" }}>
+                  <FileCheck2 size={17} aria-hidden="true" />
+                </span>
+                <div>
+                  <strong>Apply for Permit</strong>
+                  <small>Submit a tree cutting permit application</small>
+                </div>
+                <ArrowRight size={15} color="#CBD5E0" aria-hidden="true" />
+              </Link>
+
+              <Link href="/schedules" className="quick-action">
+                <span className="stat-icon" style={{ background: "#FEF3C7", color: "#D97706" }}>
+                  <CalendarDays size={17} aria-hidden="true" />
+                </span>
+                <div>
+                  <strong>View All Schedules</strong>
+                  <small>Check full municipality waste collection dates</small>
+                </div>
+                <ArrowRight size={15} color="#CBD5E0" aria-hidden="true" />
+              </Link>
+            </div>
+          </aside>
+
+          {/* Compact Garbage Collection Schedule Preview */}
+          <section className="card dashboard-schedule-compact">
+            <div className="card-title" style={{ marginBottom: "12px" }}>
+              <div>
+                <h2 style={{ fontSize: "16px" }}>Garbage Collection Schedule</h2>
+                <p className="hint">Next upcoming neighborhood pickups</p>
+              </div>
+              <Link className="text-link" href="/schedules">
+                View All <ArrowRight size={13} aria-hidden="true" />
+              </Link>
+            </div>
+
+            {schedulesError ? (
+              <div className="notice error" style={{ fontSize: "12.5px", padding: "10px" }}>
+                Unable to load collection schedules right now.
+              </div>
+            ) : scheduleItems.length === 0 ? (
+              <div className="empty-state" style={{ padding: "20px 14px", fontSize: "13px" }}>
+                No collection schedules are published yet. Check back soon.
+              </div>
+            ) : (
+              <div className="compact-schedule-list">
+                {scheduleItems.slice(0, 3).map((schedule) => (
+                  <div className="compact-schedule-item" key={schedule.id}>
+                    <div className="compact-schedule-header">
+                      <span className="compact-schedule-badge">
+                        <MapPin size={13} color="var(--primary-green)" aria-hidden="true" />
+                        <span>{schedule.barangay}</span>
+                      </span>
+                      {schedule.truck_id && (
+                        <span className="compact-schedule-truck">
+                          <Truck size={11} aria-hidden="true" />
+                          <span>{schedule.truck_id}</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="compact-schedule-meta">
+                      <span>
+                        <CalendarDays size={13} color="var(--primary-green)" aria-hidden="true" />
+                        <strong>{new Date(schedule.collection_time).toLocaleDateString()}</strong>
+                      </span>
+                      <span>
+                        <Clock3 size={13} color="var(--primary-green)" aria-hidden="true" />
+                        <span>
+                          {new Date(schedule.collection_time).toLocaleTimeString([], {
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                ))}
+
+                <Link
+                  href="/schedules"
+                  className="compact-schedule-view-all-btn"
+                >
+                  <span>View Full Municipal Schedule</span>
+                  <ArrowRight size={13} aria-hidden="true" />
+                </Link>
+              </div>
+            )}
+          </section>
+        </div>
       </div>
-      <section className="card announcement-card"><div className="card-title"><h2>Community information</h2><span className="badge approved">MENR update</span></div><p className="page-subtitle">Help keep Mabini clean by reporting illegal dumping through EcoGuard. Include a clear description, location, and photo evidence when it is safe to do so.</p></section>
     </AppShell>
   );
 }
 
-function Stat({ label, value, icon, green = false }: { label: string; value: number; icon: string; green?: boolean }) {
-  return <div className={`stat-card ${green ? "green" : ""}`}><div className="stat-top"><span className="stat-label">{label}</span><span className="stat-icon">{icon}</span></div><div className="stat-value">{value}</div></div>;
+function countStatus(items: Complaint[], status: string) {
+  return items.filter((item) => item.status === status).length;
+}
+
+function statusClass(status: string) {
+  return status.toLowerCase().replaceAll(" ", "-");
+}
+
+function Stat({
+  label,
+  value,
+  icon,
+  tone,
+}: {
+  label: string;
+  value: number;
+  icon: ReactNode;
+  tone: string;
+}) {
+  return (
+    <div className={`stat-card ${tone}`}>
+      <div className="stat-top">
+        <span className="stat-label">{label}</span>
+        <span className="stat-icon">{icon}</span>
+      </div>
+      <div className="stat-value">{value}</div>
+    </div>
+  );
 }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createCollectionSchedule } from "@/app/actions/collection-schedules";
+import { CalendarPlus, LoaderCircle } from "lucide-react";
 
 export default function CreateCollectionSchedule() {
   const [barangay, setBarangay] = useState("");
@@ -50,184 +51,98 @@ export default function CreateCollectionSchedule() {
   }
 
   return (
-    <div
-      style={{
-        marginBottom: "30px",
-        padding: "20px",
-        border: "1px solid #ddd",
-        borderRadius: "10px",
-        background: "#f9fafb",
-      }}
-    >
-      <h2 style={{ marginBottom: "15px" }}>
-        Create Collection Schedule
-      </h2>
+    <section className="card" style={{ marginBottom: "28px" }}>
+      <div className="card-title">
+        <div>
+          <h2>Create New Waste Collection Schedule</h2>
+          <p className="hint">Schedule waste pick-up times and assign trucks for Mabini barangays.</p>
+        </div>
+        <CalendarPlus size={20} color="var(--primary-green)" aria-hidden="true" />
+      </div>
 
-      <form onSubmit={handleSubmit}>
-        <label
-          htmlFor="barangay"
-          style={{
-            display: "block",
-            fontWeight: "600",
-            marginBottom: "8px",
-          }}
-        >
-          Barangay
-        </label>
+      <form className="form-grid" onSubmit={handleSubmit}>
+        <div className="form-field">
+          <label htmlFor="barangay">
+            Barangay / Area <span aria-hidden="true">*</span>
+          </label>
+          <input
+            id="barangay"
+            type="text"
+            value={barangay}
+            onChange={(event) =>
+              setBarangay(event.target.value)
+            }
+            placeholder="e.g. Poblacion, Anilao, Mainaga"
+            required
+          />
+        </div>
 
-        <input
-          id="barangay"
-          type="text"
-          value={barangay}
-          onChange={(event) =>
-            setBarangay(event.target.value)
-          }
-          placeholder="Enter barangay"
-          required
-          style={{
-            width: "100%",
-            padding: "10px",
-            marginBottom: "15px",
-            border: "1px solid #ccc",
-            borderRadius: "8px",
-            boxSizing: "border-box",
-          }}
-        />
+        <div className="form-field">
+          <label htmlFor="collection-time">
+            Collection Date and Time <span aria-hidden="true">*</span>
+          </label>
+          <input
+            id="collection-time"
+            type="datetime-local"
+            value={collectionTime}
+            onChange={(event) =>
+              setCollectionTime(event.target.value)
+            }
+            required
+          />
+        </div>
 
-        <label
-          htmlFor="collection-time"
-          style={{
-            display: "block",
-            fontWeight: "600",
-            marginBottom: "8px",
-          }}
-        >
-          Collection Date and Time
-        </label>
+        <div className="form-field">
+          <label htmlFor="truck-id">Truck Identifier</label>
+          <input
+            id="truck-id"
+            type="text"
+            value={truckId}
+            onChange={(event) =>
+              setTruckId(event.target.value)
+            }
+            placeholder="e.g. TRUCK-001"
+          />
+        </div>
 
-        <input
-          id="collection-time"
-          type="datetime-local"
-          value={collectionTime}
-          onChange={(event) =>
-            setCollectionTime(event.target.value)
-          }
-          required
-          style={{
-            width: "100%",
-            padding: "10px",
-            marginBottom: "15px",
-            border: "1px solid #ccc",
-            borderRadius: "8px",
-            boxSizing: "border-box",
-          }}
-        />
+        <div className="form-field">
+          <label htmlFor="driver-id">Assigned Driver ID / Name</label>
+          <input
+            id="driver-id"
+            type="text"
+            value={driverId}
+            onChange={(event) =>
+              setDriverId(event.target.value)
+            }
+            placeholder="e.g. DRIVER-001"
+          />
+        </div>
 
-        <label
-          htmlFor="truck-id"
-          style={{
-            display: "block",
-            fontWeight: "600",
-            marginBottom: "8px",
-          }}
-        >
-          Truck ID
-        </label>
+        {error && (
+          <div className="notice error full" role="alert">
+            {error}
+          </div>
+        )}
 
-        <input
-          id="truck-id"
-          type="text"
-          value={truckId}
-          onChange={(event) =>
-            setTruckId(event.target.value)
-          }
-          placeholder="Example: TRUCK-001"
-          style={{
-            width: "100%",
-            padding: "10px",
-            marginBottom: "15px",
-            border: "1px solid #ccc",
-            borderRadius: "8px",
-            boxSizing: "border-box",
-          }}
-        />
+        {message && (
+          <div className="notice success full" role="status">
+            {message}
+          </div>
+        )}
 
-        <label
-          htmlFor="driver-id"
-          style={{
-            display: "block",
-            fontWeight: "600",
-            marginBottom: "8px",
-          }}
-        >
-          Driver ID
-        </label>
-
-        <input
-          id="driver-id"
-          type="text"
-          value={driverId}
-          onChange={(event) =>
-            setDriverId(event.target.value)
-          }
-          placeholder="Example: DRIVER-001"
-          style={{
-            width: "100%",
-            padding: "10px",
-            marginBottom: "15px",
-            border: "1px solid #ccc",
-            borderRadius: "8px",
-            boxSizing: "border-box",
-          }}
-        />
-
-        <button
-          type="submit"
-          disabled={loading}
-          style={{
-            width: "100%",
-            padding: "12px",
-            border: "none",
-            borderRadius: "8px",
-            background: loading ? "#999" : "#166534",
-            color: "white",
-            fontWeight: "600",
-            cursor: loading ? "not-allowed" : "pointer",
-          }}
-        >
-          {loading
-            ? "Creating..."
-            : "Create Collection Schedule"}
-        </button>
+        <div className="form-actions full">
+          <button
+            type="submit"
+            className="button green"
+            disabled={loading}
+          >
+            {loading ? (
+              <LoaderCircle className="spin" size={16} aria-hidden="true" />
+            ) : null}
+            {loading ? "Creating Schedule..." : "Create Collection Schedule"}
+          </button>
+        </div>
       </form>
-
-      {error && (
-        <div
-          style={{
-            marginTop: "15px",
-            padding: "12px",
-            background: "#fee2e2",
-            color: "#991b1b",
-            borderRadius: "8px",
-          }}
-        >
-          {error}
-        </div>
-      )}
-
-      {message && (
-        <div
-          style={{
-            marginTop: "15px",
-            padding: "12px",
-            background: "#dcfce7",
-            color: "#166534",
-            borderRadius: "8px",
-          }}
-        >
-          {message}
-        </div>
-      )}
-    </div>
+    </section>
   );
 }

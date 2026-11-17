@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import CollectionActions from "./CollectionActions";
 import CreateCollectionSchedule from "./CreateCollectionSchedule";
 import AppShell from "@/components/app-shell";
+import Link from "next/link";
+import { ArrowLeft, CalendarDays, Truck } from "lucide-react";
 
 export default async function AdminCollectionPage() {
   const supabase = await createClient();
@@ -24,13 +26,7 @@ export default async function AdminCollectionPage() {
 
   if (profileError || !profile) {
     return (
-      <main
-        style={{
-          minHeight: "100vh",
-          padding: "40px 20px",
-          background: "#f4f7fb",
-        }}
-      >
+      <main style={{ padding: "40px" }}>
         <h1>Access Error</h1>
         <p>Unable to verify your account role.</p>
       </main>
@@ -52,159 +48,120 @@ export default async function AdminCollectionPage() {
 
   if (schedulesError) {
     return (
-      <AppShell mode="admin" userName={profile.full_name || "MENR Administrator"} email={profile.email || user.email}>
-      <main
-        style={{
-          minHeight: "100vh",
-          padding: "40px 20px",
-          background: "#f4f7fb",
-        }}
+      <AppShell
+        mode="admin"
+        userName={profile.full_name || "MENR Administrator"}
+        email={profile.email || user.email}
       >
-        <h1>Garbage Collection Management</h1>
-
-        <div
-          style={{
-            marginTop: "20px",
-            padding: "15px",
-            background: "#fee2e2",
-            color: "#991b1b",
-            borderRadius: "8px",
-          }}
-        >
-          Unable to load collection schedules:{" "}
-          {schedulesError.message}
+        <div className="notice error">
+          Unable to load collection schedules: {schedulesError.message}
         </div>
-      </main>
       </AppShell>
     );
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        padding: "40px 20px",
-        background: "#f4f7fb",
-      }}
+    <AppShell
+      mode="admin"
+      userName={profile.full_name || "MENR Administrator"}
+      email={profile.email || user.email}
     >
-      <div
-        style={{
-          maxWidth: "1000px",
-          margin: "0 auto",
-        }}
-      >
-        <div
-          style={{
-            background: "white",
-            padding: "30px",
-            borderRadius: "12px",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-          }}
-        >
-          <h1
-            style={{
-              color: "#166534",
-              marginBottom: "10px",
-            }}
-          >
-            Garbage Collection Management
-          </h1>
-
-          <p
-            style={{
-              color: "#555",
-              marginBottom: "25px",
-            }}
-          >
-            Manage garbage collection schedules, truck
-            assignments, and drivers.
+      <div className="page-header">
+        <div>
+          <p className="eyebrow">MENR OPERATIONS • MABINI</p>
+          <h1 className="page-title">Garbage Collection Management</h1>
+          <p className="page-subtitle">
+            Create, update, and coordinate municipal waste collection schedules, trucks, and assigned drivers.
           </p>
-
-          <CreateCollectionSchedule />
-
-          {schedules && schedules.length === 0 && (
-            <div
-              style={{
-                padding: "20px",
-                background: "#f3f4f6",
-                borderRadius: "8px",
-                color: "#555",
-              }}
-            >
-              No collection schedules have been created yet.
-            </div>
-          )}
-
-          <div
-            style={{
-              display: "grid",
-              gap: "20px",
-            }}
-          >
-            {schedules?.map((schedule) => (
-              <div
-                key={schedule.id}
-                style={{
-                  border: "1px solid #ddd",
-                  borderRadius: "10px",
-                  padding: "20px",
-                  background: "#fff",
-                }}
-              >
-                <h2
-                  style={{
-                    marginBottom: "15px",
-                    fontSize: "20px",
-                  }}
-                >
-                  Garbage Collection Schedule
-                </h2>
-
-                <p>
-                  <strong>Barangay:</strong>{" "}
-                  {schedule.barangay}
-                </p>
-
-                <p>
-                  <strong>Collection Time:</strong>{" "}
-                  {new Date(
-                    schedule.collection_time
-                  ).toLocaleString()}
-                </p>
-
-                <p>
-                  <strong>Truck:</strong>{" "}
-                  {schedule.truck_id ?? "Not assigned"}
-                </p>
-
-                <p>
-                  <strong>Driver:</strong>{" "}
-                  {schedule.driver_id ?? "Not assigned"}
-                </p>
-
-                <p
-                  style={{
-                    marginTop: "10px",
-                    wordBreak: "break-all",
-                    fontSize: "13px",
-                    color: "#666",
-                  }}
-                >
-                  <strong>Schedule ID:</strong>{" "}
-                  {schedule.id}
-                </p>
-                <CollectionActions
-  scheduleId={schedule.id}
-  currentBarangay={schedule.barangay}
-  currentCollectionTime={schedule.collection_time}
-  currentTruckId={schedule.truck_id}
-  currentDriverId={schedule.driver_id}
-/>
-              </div>
-            ))}
-          </div>
+        </div>
+        <div className="page-header-actions">
+          <Link className="button secondary" href="/admin">
+            <ArrowLeft size={16} aria-hidden="true" /> Back to Dashboard
+          </Link>
+          <Link className="button green" href="/admin/collection/trip-tickets">
+            <Truck size={16} aria-hidden="true" /> Trip Tickets
+          </Link>
         </div>
       </div>
-    </main>
+
+      <CreateCollectionSchedule />
+
+      <h2 style={{ color: "var(--dark-forest)", margin: "32px 0 16px", fontSize: "18px", fontWeight: 700 }}>
+        Active Collection Schedules ({schedules?.length ?? 0})
+      </h2>
+
+      {!schedules || schedules.length === 0 ? (
+        <section className="card empty-state">
+          No collection schedules have been created yet.
+        </section>
+      ) : (
+        <div style={{ display: "grid", gap: "20px" }}>
+          {schedules.map((schedule) => (
+            <article key={schedule.id} className="card">
+              <div className="card-title">
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span className="activity-icon" style={{ background: "var(--light-green)", color: "var(--primary-green)" }}>
+                    <CalendarDays size={18} aria-hidden="true" />
+                  </span>
+                  <div>
+                    <h2>{schedule.barangay}</h2>
+                    <span className="muted-id">Schedule ID: {schedule.id}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                  gap: "12px",
+                  padding: "14px",
+                  background: "#F8FAFC",
+                  borderRadius: "10px",
+                  border: "1px solid var(--border)",
+                  margin: "12px 0",
+                  fontSize: "13px",
+                }}
+              >
+                <div>
+                  <span style={{ color: "var(--text-secondary)", display: "block", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>
+                    Collection Time
+                  </span>
+                  <strong style={{ color: "var(--text-main)" }}>
+                    {new Date(schedule.collection_time).toLocaleString()}
+                  </strong>
+                </div>
+
+                <div>
+                  <span style={{ color: "var(--text-secondary)", display: "block", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>
+                    Assigned Truck
+                  </span>
+                  <strong style={{ color: "var(--dark-forest)" }}>
+                    {schedule.truck_id ?? "Not assigned"}
+                  </strong>
+                </div>
+
+                <div>
+                  <span style={{ color: "var(--text-secondary)", display: "block", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>
+                    Assigned Driver
+                  </span>
+                  <strong style={{ color: "var(--dark-forest)" }}>
+                    {schedule.driver_id ?? "Not assigned"}
+                  </strong>
+                </div>
+              </div>
+
+              <CollectionActions
+                scheduleId={schedule.id}
+                currentBarangay={schedule.barangay}
+                currentCollectionTime={schedule.collection_time}
+                currentTruckId={schedule.truck_id}
+                currentDriverId={schedule.driver_id}
+              />
+            </article>
+          ))}
+        </div>
+      )}
+    </AppShell>
   );
 }

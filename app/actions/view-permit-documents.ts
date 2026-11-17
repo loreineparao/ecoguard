@@ -62,12 +62,20 @@ export async function getPermitDocuments(
     };
   }
 
-  // Only authorized MENR personnel can access all permit documents
+  // Check authorization: MENR admin or the application owner
   if (profile.role !== "admin") {
-    return {
-      success: false,
-      error: "Only authorized MENR personnel can view permit documents.",
-    };
+    const { data: application, error: appError } = await supabase
+      .from("permit_applications")
+      .select("user_id")
+      .eq("id", applicationId)
+      .maybeSingle();
+
+    if (appError || !application || application.user_id !== user.id) {
+      return {
+        success: false,
+        error: "Only authorized MENR personnel or the applicant can view permit documents.",
+      };
+    }
   }
 
   if (!applicationId) {
@@ -93,13 +101,13 @@ export async function getPermitDocuments(
     };
   }
 
-  // Create secure temporary URLs for the private files
+  // Create secure temporary URLs for the private files (valid for 1 hour)
   const documentsWithUrls = await Promise.all(
     (documents || []).map(async (document) => {
       const { data: signedUrlData, error: signedUrlError } =
         await supabase.storage
           .from("permit-documents")
-          .createSignedUrl(document.file_path, 60 * 10);
+          .createSignedUrl(document.file_path, 60 * 60);
 
       if (signedUrlError) {
         return {
