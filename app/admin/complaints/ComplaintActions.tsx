@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { updateComplaintStatus } from "@/app/actions/complaint-status";
 import { dispatchComplaint } from "@/app/actions/dispatch-complaint";
+import { LoaderCircle, Send, Check } from "lucide-react";
 
 type ComplaintActionsProps = {
   complaintId: string;
@@ -66,7 +67,7 @@ export default function ComplaintActions({
     setError("");
 
     if (!assignedPersonnel.trim()) {
-      setError("Please enter the assigned personnel.");
+      setError("Please enter the assigned personnel name.");
       setLoading(false);
       return;
     }
@@ -85,7 +86,6 @@ export default function ComplaintActions({
     }
 
     setStatus("Dispatched");
-
     setMessage(
       `Complaint dispatched to ${assignedPersonnel.trim()}.`
     );
@@ -98,132 +98,83 @@ export default function ComplaintActions({
       style={{
         marginTop: "20px",
         paddingTop: "20px",
-        borderTop: "1px solid #eee",
+        borderTop: "1px solid var(--border)",
       }}
     >
-      <h3 style={{ marginBottom: "15px" }}>
-        MENR Actions
+      <h3 style={{ color: "var(--dark-forest)", fontSize: "14px", fontWeight: 700, marginBottom: "14px" }}>
+        MENR Administrative Actions
       </h3>
 
-      {/* Status */}
+      <div style={{ display: "grid", gap: "14px", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>
+        {/* Status Dropdown */}
+        <div className="form-field">
+          <label htmlFor={`status-${complaintId}`}>
+            Update Status
+          </label>
+          <select
+            id={`status-${complaintId}`}
+            value={status}
+            disabled={loading}
+            onChange={(event) =>
+              handleStatusChange(
+                event.target.value as
+                  | "Pending"
+                  | "Under Review"
+                  | "Dispatched"
+                  | "Resolved"
+              )
+            }
+          >
+            <option value="Pending">Pending</option>
+            <option value="Under Review">Under Review</option>
+            <option value="Dispatched">Dispatched</option>
+            <option value="Resolved">Resolved</option>
+          </select>
+        </div>
 
-      <label
-        htmlFor={`status-${complaintId}`}
-        style={{
-          display: "block",
-          fontWeight: "600",
-          marginBottom: "8px",
-        }}
-      >
-        Complaint Status
-      </label>
-
-      <select
-        id={`status-${complaintId}`}
-        value={status}
-        disabled={loading}
-        onChange={(event) =>
-          handleStatusChange(
-            event.target.value as
-              | "Pending"
-              | "Under Review"
-              | "Dispatched"
-              | "Resolved"
-          )
-        }
-        style={{
-          width: "100%",
-          padding: "10px",
-          border: "1px solid #ccc",
-          borderRadius: "8px",
-          background: "white",
-        }}
-      >
-        <option value="Pending">Pending</option>
-        <option value="Under Review">Under Review</option>
-        <option value="Dispatched">Dispatched</option>
-        <option value="Resolved">Resolved</option>
-      </select>
-
-      {/* Assigned Personnel */}
-
-      <label
-        htmlFor={`personnel-${complaintId}`}
-        style={{
-          display: "block",
-          fontWeight: "600",
-          marginTop: "15px",
-          marginBottom: "8px",
-        }}
-      >
-        Assigned Personnel
-      </label>
-
-      <input
-        id={`personnel-${complaintId}`}
-        type="text"
-        value={assignedPersonnel}
-        disabled={loading}
-        onChange={(event) =>
-          setAssignedPersonnel(event.target.value)
-        }
-        placeholder="Enter MENR personnel name"
-        style={{
-          width: "100%",
-          padding: "10px",
-          border: "1px solid #ccc",
-          borderRadius: "8px",
-          boxSizing: "border-box",
-        }}
-      />
-
-      {/* Dispatch */}
-
-      <button
-        type="button"
-        onClick={handleDispatch}
-        disabled={loading}
-        style={{
-          width: "100%",
-          marginTop: "12px",
-          padding: "12px",
-          border: "none",
-          borderRadius: "8px",
-          background: loading ? "#999" : "#2563eb",
-          color: "white",
-          fontWeight: "600",
-          cursor: loading ? "not-allowed" : "pointer",
-        }}
-      >
-        {loading ? "Processing..." : "Assign & Dispatch"}
-      </button>
-
-      {/* Messages */}
+        {/* Assigned Personnel */}
+        <div className="form-field">
+          <label htmlFor={`personnel-${complaintId}`}>
+            Assigned Personnel
+          </label>
+          <div style={{ display: "flex", gap: "8px" }}>
+            <input
+              id={`personnel-${complaintId}`}
+              type="text"
+              value={assignedPersonnel}
+              disabled={loading}
+              onChange={(event) =>
+                setAssignedPersonnel(event.target.value)
+              }
+              placeholder="e.g. Officer Santos"
+            />
+            <button
+              type="button"
+              className="button green"
+              onClick={handleDispatch}
+              disabled={loading}
+              title="Assign personnel & mark dispatched"
+            >
+              {loading ? (
+                <LoaderCircle className="spin" size={15} aria-hidden="true" />
+              ) : (
+                <Send size={15} aria-hidden="true" />
+              )}
+              Dispatch
+            </button>
+          </div>
+        </div>
+      </div>
 
       {error && (
-        <div
-          style={{
-            marginTop: "15px",
-            padding: "12px",
-            background: "#fee2e2",
-            color: "#991b1b",
-            borderRadius: "8px",
-          }}
-        >
+        <div className="notice error" role="alert" style={{ marginTop: "12px" }}>
           {error}
         </div>
       )}
 
       {message && (
-        <div
-          style={{
-            marginTop: "15px",
-            padding: "12px",
-            background: "#dcfce7",
-            color: "#166534",
-            borderRadius: "8px",
-          }}
-        >
+        <div className="notice success" role="status" style={{ marginTop: "12px" }}>
+          <Check size={14} style={{ display: "inline-block", marginRight: "6px" }} />
           {message}
         </div>
       )}

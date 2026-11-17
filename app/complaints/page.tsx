@@ -1,7 +1,9 @@
-
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getMyComplaintEvidence } from "@/app/actions/evidence";
+import AppShell from "@/components/app-shell";
+import Link from "next/link";
+import { ArrowLeft, Plus, MessageSquare, ImageIcon } from "lucide-react";
 
 export default async function ComplaintsPage() {
   const supabase = await createClient();
@@ -24,10 +26,11 @@ export default async function ComplaintsPage() {
 
   if (error) {
     return (
-      <main style={{ padding: "40px" }}>
-        <h1>My Complaints</h1>
-        <p>Error loading complaints: {error.message}</p>
-      </main>
+      <AppShell mode="resident" userName="Resident" email={user.email}>
+        <div className="notice error">
+          Error loading complaints: {error.message}
+        </div>
+      </AppShell>
     );
   }
 
@@ -45,78 +48,119 @@ export default async function ComplaintsPage() {
     })
   );
 
-  return (
-    <main
-      style={{
-        maxWidth: "900px",
-        margin: "0 auto",
-        padding: "40px 20px",
-        fontFamily: "Arial, sans-serif",
-        background: "#f4f7fb",
-        minHeight: "100vh",
-      }}
-    >
-      <h1 style={{ color: "#166534" }}>
-        My Environmental Complaints
-      </h1>
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name, email")
+    .eq("id", user.id)
+    .maybeSingle();
 
-      <p>
-        Track the status of your submitted environmental complaints.
-      </p>
+  return (
+    <AppShell
+      mode="resident"
+      userName={profile?.full_name || "Resident"}
+      email={profile?.email || user.email}
+    >
+      <div className="page-header">
+        <div>
+          <p className="eyebrow">RESIDENT PORTAL • MABINI</p>
+          <h1 className="page-title">My Complaints</h1>
+          <p className="page-subtitle">
+            Track and monitor every environmental concern you have submitted.
+          </p>
+        </div>
+        <div className="page-header-actions">
+          <Link className="button secondary" href="/dashboard">
+            <ArrowLeft size={16} aria-hidden="true" /> Back to Dashboard
+          </Link>
+          <Link className="button green" href="/complaints/new">
+            <Plus size={16} aria-hidden="true" /> Submit New Complaint
+          </Link>
+        </div>
+      </div>
 
       {complaintsWithEvidence.length === 0 ? (
-        <p>No complaints submitted yet.</p>
+        <section className="card empty-state">
+          No complaints submitted yet.{" "}
+          <Link className="text-link" href="/complaints/new">
+            Submit your first complaint
+          </Link>
+          .
+        </section>
       ) : (
-        <div style={{ marginTop: "30px" }}>
+        <div style={{ display: "grid", gap: "18px" }}>
           {complaintsWithEvidence.map((complaint) => (
-            <article
-              key={complaint.id}
-              style={{
-                background: "white",
-                border: "1px solid #ddd",
-                borderRadius: "10px",
-                padding: "20px",
-                marginBottom: "20px",
-                overflowWrap: "anywhere",
-              }}
-            >
-              <h2>{complaint.category}</h2>
+            <article key={complaint.id} className="card">
+              <div className="card-title">
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span className="activity-icon complaint">
+                    <MessageSquare size={17} aria-hidden="true" />
+                  </span>
+                  <div>
+                    <h2>{complaint.category}</h2>
+                    <span className="muted-id">
+                      Case Reference: {complaint.id}
+                    </span>
+                  </div>
+                </div>
+                <span
+                  className={`badge ${complaint.status
+                    .toLowerCase()
+                    .replaceAll(" ", "-")}`}
+                >
+                  {complaint.status}
+                </span>
+              </div>
 
-              <p>
-                <strong>Description:</strong>{" "}
+              <p style={{ margin: "14px 0", lineHeight: 1.6, color: "var(--text-main)" }}>
                 {complaint.description}
               </p>
 
-              <p>
-                <strong>Status:</strong> {complaint.status}
-              </p>
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "18px",
+                  padding: "12px 14px",
+                  background: "#F8FAFC",
+                  borderRadius: "9px",
+                  border: "1px solid var(--border)",
+                  fontSize: "12px",
+                  color: "var(--text-secondary)",
+                }}
+              >
+                <div>
+                  <strong>Assigned Personnel:</strong>{" "}
+                  {complaint.assigned_personnel || "Pending assignment by MENR"}
+                </div>
+                <div>
+                  <strong>Submitted:</strong>{" "}
+                  {new Date(complaint.created_at).toLocaleString()}
+                </div>
+              </div>
 
-              <p>
-                <strong>Assigned Personnel:</strong>{" "}
-                {complaint.assigned_personnel || "Not yet assigned"}
-              </p>
-
-              <p>
-                <strong>Submitted:</strong>{" "}
-                {new Date(complaint.created_at).toLocaleString()}
-              </p>
-
-              <p>
-                <strong>Complaint ID:</strong> {complaint.id}
-              </p>
-
-              <h3 style={{ marginTop: "20px" }}>
-                Uploaded Evidence
+              <h3
+                style={{
+                  color: "var(--dark-forest)",
+                  fontSize: "13.5px",
+                  fontWeight: 700,
+                  marginTop: "20px",
+                  marginBottom: "12px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <ImageIcon size={15} aria-hidden="true" /> Uploaded Evidence
               </h3>
 
               {complaint.evidence.length === 0 ? (
-                <p>No evidence available for this complaint.</p>
+                <p className="hint">No photographic evidence attached to this report.</p>
               ) : (
                 <div
                   style={{
                     display: "flex",
                     flexWrap: "wrap",
-                    gap: "12px",
+                    gap: "14px",
                   }}
                 >
                   {complaint.evidence.map((item) => (
@@ -126,26 +170,26 @@ export default async function ComplaintsPage() {
                           href={item.signedUrl}
                           target="_blank"
                           rel="noopener noreferrer"
+                          title="Click to view full image"
                         >
                           <img
                             src={item.signedUrl}
-                            alt="Complaint evidence"
+                            alt="Complaint photographic evidence"
                             style={{
                               display: "block",
-                              width: "220px",
+                              width: "240px",
                               maxWidth: "100%",
-                              height: "180px",
-                              objectFit: "contain",
-                              border: "1px solid #ddd",
-                              borderRadius: "8px",
-                              background: "#f9fafb",
+                              height: "170px",
+                              objectFit: "cover",
+                              border: "1px solid var(--border)",
+                              borderRadius: "10px",
+                              boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
                             }}
                           />
                         </a>
                       ) : (
-                        <p>
-                          Evidence could not be displayed. Please
-                          refresh the page and try again.
+                        <p className="notice error">
+                          Evidence could not be previewed.
                         </p>
                       )}
                     </div>
@@ -156,6 +200,6 @@ export default async function ComplaintsPage() {
           ))}
         </div>
       )}
-    </main>
+    </AppShell>
   );
 }

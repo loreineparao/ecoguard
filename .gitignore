@@ -34,8 +34,14 @@ yarn-error.log*
 .env*
 
 # vercel
-.vercel
+.vercel~
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local IDE settings
+.vscode/
+
+# Backup archives
+*.zip

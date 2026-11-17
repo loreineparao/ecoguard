@@ -1,8 +1,10 @@
-
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getMyPermitApplications } from "@/app/actions/permits";
+import AppShell from "@/components/app-shell";
+import SubmittedRequirements from "@/app/admin/permits/SubmittedRequirements";
+import { ArrowLeft, FileCheck, Plus, TreePine, Calendar } from "lucide-react";
 
 export default async function MyPermitsPage() {
   const supabase = await createClient();
@@ -19,92 +21,131 @@ export default async function MyPermitsPage() {
 
   if (!result.success) {
     return (
-      <main style={{ padding: "40px", background: "#f4f7fb", minHeight: "100vh" }}>
-        <h1>My Permit Applications</h1>
-        <p style={{ color: "#dc2626" }}>{result.error}</p>
-        <Link href="/dashboard">Back to Dashboard</Link>
-      </main>
+      <AppShell mode="resident" userName="Resident" email={user.email}>
+        <div className="notice error">
+          Unable to load permit applications: {result.error}
+        </div>
+      </AppShell>
     );
   }
 
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name, email")
+    .eq("id", user.id)
+    .maybeSingle();
+
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        padding: "30px 20px",
-        background: "#f4f7fb",
-      }}
+    <AppShell
+      mode="resident"
+      userName={profile?.full_name || "Resident"}
+      email={profile?.email || user.email}
     >
-      <div
-        style={{
-          maxWidth: "800px",
-          margin: "0 auto",
-          background: "white",
-          padding: "30px",
-          borderRadius: "12px",
-          boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-        }}
-      >
-        <h1 style={{ color: "#166534", marginBottom: "10px" }}>
-          My Permit Applications
-        </h1>
-
-        <p style={{ color: "#555", marginBottom: "24px" }}>
-          View the Tree Cutting Permit Applications submitted through your account.
-        </p>
-
-        <Link
-          href="/permits/new"
-          style={{
-            display: "inline-block",
-            padding: "10px 16px",
-            background: "#166534",
-            color: "white",
-            borderRadius: "8px",
-            textDecoration: "none",
-            marginBottom: "24px",
-          }}
-        >
-          + New Permit Application
-        </Link>
-
-        {result.applications.length === 0 ? (
-          <p style={{ color: "#666" }}>
-            You have not submitted any permit applications yet.
+      <div className="page-header">
+        <div>
+          <p className="eyebrow">RESIDENT PORTAL • MABINI</p>
+          <h1 className="page-title">My Applications</h1>
+          <p className="page-subtitle">
+            View submitted tree-cutting permit applications and MENR review status.
           </p>
-        ) : (
-          <div style={{ display: "grid", gap: "16px" }}>
-            {result.applications.map((application) => (
-              <article
-                key={application.id}
-                style={{
-                  padding: "18px",
-                  border: "1px solid #ddd",
-                  borderRadius: "8px",
-                }}
-              >
-                <h2 style={{ fontSize: "18px", marginBottom: "8px" }}>
-                  {application.applicant_name}
-                </h2>
-
-                <p>
-                  <strong>Application ID:</strong> {application.id}
-                </p>
-
-                <p style={{ marginTop: "6px" }}>
-                  <strong>Status:</strong> {application.application_status}
-                </p>
-              </article>
-            ))}
-          </div>
-        )}
-
-        <div style={{ marginTop: "28px" }}>
-          <Link href="/dashboard" style={{ color: "#166534" }}>
-            ← Back to Dashboard
+        </div>
+        <div className="page-header-actions">
+          <Link className="button secondary" href="/dashboard">
+            <ArrowLeft size={16} aria-hidden="true" /> Back to Dashboard
+          </Link>
+          <Link className="button green" href="/permits/new">
+            <Plus size={16} aria-hidden="true" /> New Permit Application
           </Link>
         </div>
       </div>
-    </main>
+
+      {result.applications.length === 0 ? (
+        <section className="card empty-state">
+          You have not submitted any permit applications yet.{" "}
+          <Link className="text-link" href="/permits/new">
+            Apply for a tree cutting permit
+          </Link>
+          .
+        </section>
+      ) : (
+        <div style={{ display: "grid", gap: "18px" }}>
+          {result.applications.map((application) => (
+            <article key={application.id} className="card">
+              <div className="card-title">
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span className="activity-icon permit">
+                    <TreePine size={18} aria-hidden="true" />
+                  </span>
+                  <div>
+                    <h2>Tree Cutting Permit Application</h2>
+                    <span className="muted-id">
+                      Application ID: {application.id}
+                    </span>
+                  </div>
+                </div>
+                <span
+                  className={`badge ${application.application_status
+                    .toLowerCase()
+                    .replaceAll(" ", "-")}`}
+                >
+                  {application.application_status}
+                </span>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                  gap: "12px",
+                  padding: "14px",
+                  background: "#F8FAFC",
+                  borderRadius: "10px",
+                  border: "1px solid var(--border)",
+                  margin: "14px 0",
+                  fontSize: "13px",
+                }}
+              >
+                <div>
+                  <span style={{ color: "var(--text-secondary)", display: "block", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>
+                    Applicant Name
+                  </span>
+                  <strong style={{ color: "var(--dark-forest)" }}>
+                    {application.applicant_name}
+                  </strong>
+                </div>
+
+                <div>
+                  <span style={{ color: "var(--text-secondary)", display: "block", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>
+                    Date Submitted
+                  </span>
+                  <strong style={{ color: "var(--text-main)" }}>
+                    {application.submitted_at
+                      ? new Date(application.submitted_at).toLocaleDateString()
+                      : "Date unavailable"}
+                  </strong>
+                </div>
+
+                <div>
+                  <span style={{ color: "var(--text-secondary)", display: "block", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>
+                    Service Office
+                  </span>
+                  <strong style={{ color: "var(--primary-green)" }}>
+                    MENR Office — Mabini
+                  </strong>
+                </div>
+              </div>
+
+              <SubmittedRequirements
+                requirements={application.documentary_requirements}
+              />
+
+              <p className="hint">
+                Our MENR officers will review the documentary requirements and conduct an on-site inspection if necessary before approving your tree cutting permit.
+              </p>
+            </article>
+          ))}
+        </div>
+      )}
+    </AppShell>
   );
 }

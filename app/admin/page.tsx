@@ -1,174 +1,254 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import AppShell from "@/components/app-shell";
+import {
+  ArrowRight,
+  CalendarDays,
+  CheckCircle2,
+  Clock3,
+  FileCheck2,
+  FileText,
+  Send,
+  Timer,
+} from "lucide-react";
+import type { ReactNode } from "react";
 
 export default async function AdminPage() {
   const supabase = await createClient();
-
-  // 1. Check logged-in user
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect("/login");
-  }
+  if (!user) redirect("/login");
 
-  // 2. Check user's role
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select("full_name, email, role")
-    .eq("id", user.id)
-    .single();
+  const [{ data: profile }, complaints, permits, schedules] =
+    await Promise.all([
+      supabase
+        .from("profiles")
+        .select("full_name, email, role")
+        .eq("id", user.id)
+        .maybeSingle(),
+      supabase
+        .from("complaints")
+        .select("id, category, status, created_at")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("permit_applications")
+        .select("id, applicant_name, application_status, submitted_at")
+        .order("submitted_at", { ascending: false }),
+      supabase
+        .from("collection_schedules")
+        .select("id, barangay, collection_time")
+        .order("collection_time", { ascending: true }),
+    ]);
 
-  if (error || !profile) {
-    return (
-      <main
-        style={{
-          minHeight: "100vh",
-          padding: "40px",
-          background: "#f4f7fb",
-        }}
-      >
-        <h1>Access Error</h1>
-        <p>Unable to verify your account role.</p>
-      </main>
-    );
-  }
+  if (profile?.role !== "admin") redirect("/dashboard");
 
-  // 3. Only administrators can access this page
-  if (profile.role !== "admin") {
-    redirect("/dashboard");
-  }
+  const allComplaints = complaints.data ?? [];
+  const statusCount = (status: string) =>
+    allComplaints.filter((item) => item.status === status).length;
+  const name = profile?.full_name || "MENR Administrator";
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        padding: "40px 20px",
-        background: "#f4f7fb",
-      }}
+    <AppShell
+      mode="admin"
+      userName={name}
+      email={profile?.email ?? user.email}
     >
-      <div
-        style={{
-          maxWidth: "900px",
-          margin: "0 auto",
-        }}
-      >
-        <div
-          style={{
-            background: "white",
-            padding: "30px",
-            borderRadius: "12px",
-            boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-          }}
-        >
-          <h1
-            style={{
-              color: "#166534",
-              marginBottom: "10px",
-            }}
-          >
-            EcoGuard MENR Admin Dashboard
-          </h1>
-
-          <p
-            style={{
-              color: "#555",
-              marginBottom: "20px",
-            }}
-          >
-            Welcome, {profile.full_name}.
+      <div className="page-header">
+        <div>
+          <p className="eyebrow">MENR OPERATIONS • MABINI, BATANGAS</p>
+          <h1 className="page-title">Admin Dashboard</h1>
+          <p className="page-subtitle">
+            Comprehensive oversight of environmental reports, permits, and waste logistics.
           </p>
-
-          <div
-            style={{
-              padding: "15px",
-              background: "#f0fdf4",
-              borderRadius: "8px",
-              marginBottom: "25px",
-            }}
-          >
-            <strong>Admin Account</strong>
-
-            <p style={{ marginTop: "8px" }}>
-              Email: {profile.email ?? user.email}
-            </p>
-
-            <p>
-              Role: <strong>{profile.role}</strong>
-            </p>
-          </div>
-
-          <h2
-            style={{
-              marginBottom: "15px",
-            }}
-          >
-            MENR Management Modules
-          </h2>
-
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(200px, 1fr))",
-              gap: "15px",
-            }}
-          >
-            <div
-              style={{
-                padding: "20px",
-                border: "1px solid #ddd",
-                borderRadius: "8px",
-              }}
-            >
-              <h3>Environmental Complaints</h3>
-              <p style={{ color: "#666" }}>
-                Review, verify, dispatch, and monitor complaints.
-              </p>
-            </div>
-
-            <div
-              style={{
-                padding: "20px",
-                border: "1px solid #ddd",
-                borderRadius: "8px",
-              }}
-            >
-              <h3>Tree Cutting Permits</h3>
-              <p style={{ color: "#666" }}>
-                Review permit applications and documents.
-              </p>
-            </div>
-
-            <div
-              style={{
-                padding: "20px",
-                border: "1px solid #ddd",
-                borderRadius: "8px",
-              }}
-            >
-              <h3>Garbage Collection</h3>
-              <p style={{ color: "#666" }}>
-                Manage schedules, trucks, drivers, and trip tickets.
-              </p>
-            </div>
-
-            <div
-              style={{
-                padding: "20px",
-                border: "1px solid #ddd",
-                borderRadius: "8px",
-              }}
-            >
-              <h3>Reports</h3>
-              <p style={{ color: "#666" }}>
-                Generate and manage environmental reports.
-              </p>
-            </div>
-          </div>
         </div>
+        <Link href="/admin/reports" className="button secondary">
+          Reports Center <ArrowRight size={15} aria-hidden="true" />
+        </Link>
       </div>
-    </main>
+
+      <div className="stats-grid">
+        <Stat
+          label="Total Complaints"
+          value={allComplaints.length}
+          icon={<FileText size={18} aria-hidden="true" />}
+          tone="filed"
+        />
+        <Stat
+          label="Pending Review"
+          value={statusCount("Pending")}
+          icon={<Timer size={18} aria-hidden="true" />}
+          tone="pending"
+        />
+        <Stat
+          label="Dispatched"
+          value={statusCount("Dispatched")}
+          icon={<Send size={18} aria-hidden="true" />}
+          tone="review"
+        />
+        <Stat
+          label="Resolved"
+          value={statusCount("Resolved")}
+          icon={<CheckCircle2 size={18} aria-hidden="true" />}
+          tone="resolved"
+        />
+      </div>
+
+      <div className="content-grid">
+        <section className="card">
+          <div className="card-title">
+            <div>
+              <h2>Recent Complaints</h2>
+              <p className="hint">Latest incident reports submitted by residents.</p>
+            </div>
+            <Link className="text-link" href="/admin/complaints">
+              Manage All <ArrowRight size={13} aria-hidden="true" />
+            </Link>
+          </div>
+
+          {allComplaints.length === 0 ? (
+            <div className="empty-state">
+              No environmental complaints have been submitted yet.
+            </div>
+          ) : (
+            <div className="table-wrap">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Category</th>
+                    <th>Submitted</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allComplaints.slice(0, 6).map((item) => (
+                    <tr key={item.id}>
+                      <td>
+                        <strong>{item.category}</strong>
+                        <div className="muted-id">Ref: {item.id.slice(0, 8)}…</div>
+                      </td>
+                      <td>{new Date(item.created_at).toLocaleDateString()}</td>
+                      <td>
+                        <span
+                          className={`badge ${item.status
+                            .toLowerCase()
+                            .replaceAll(" ", "-")}`}
+                        >
+                          {item.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        <aside className="card">
+          <div className="card-title">
+            <div>
+              <h2>Service Operations Snapshot</h2>
+              <p className="hint">Real-time municipality metrics.</p>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", margin: "16px 0 24px" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "12px 14px",
+                background: "#F8FAFC",
+                borderRadius: "8px",
+                border: "1px solid var(--border)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <FileCheck2 size={17} color="var(--primary-green)" aria-hidden="true" />
+                <span style={{ fontSize: "13px", fontWeight: 500 }}>Permit Applications</span>
+              </div>
+              <strong style={{ fontSize: "16px", color: "var(--dark-forest)" }}>
+                {permits.data?.length ?? 0}
+              </strong>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "12px 14px",
+                background: "#F8FAFC",
+                borderRadius: "8px",
+                border: "1px solid var(--border)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <CalendarDays size={17} color="var(--primary-green)" aria-hidden="true" />
+                <span style={{ fontSize: "13px", fontWeight: 500 }}>Collection Schedules</span>
+              </div>
+              <strong style={{ fontSize: "16px", color: "var(--dark-forest)" }}>
+                {schedules.data?.length ?? 0}
+              </strong>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "12px 14px",
+                background: "#F8FAFC",
+                borderRadius: "8px",
+                border: "1px solid var(--border)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <Clock3 size={17} color="#0284C7" aria-hidden="true" />
+                <span style={{ fontSize: "13px", fontWeight: 500 }}>Under Active Review</span>
+              </div>
+              <strong style={{ fontSize: "16px", color: "var(--dark-forest)" }}>
+                {statusCount("Under Review")}
+              </strong>
+            </div>
+          </div>
+
+          <div className="quick-actions">
+            <Link href="/admin/collection" className="button secondary" style={{ width: "100%", justifyContent: "flex-start" }}>
+              <CalendarDays size={16} aria-hidden="true" /> Manage Waste Schedules
+            </Link>
+            <Link href="/admin/permits" className="button secondary" style={{ width: "100%", justifyContent: "flex-start" }}>
+              <FileCheck2 size={16} aria-hidden="true" /> Review Tree Cutting Permits
+            </Link>
+          </div>
+        </aside>
+      </div>
+    </AppShell>
+  );
+}
+
+function Stat({
+  label,
+  value,
+  icon,
+  tone,
+}: {
+  label: string;
+  value: number;
+  icon: ReactNode;
+  tone: string;
+}) {
+  return (
+    <div className={`stat-card ${tone}`}>
+      <div className="stat-top">
+        <span className="stat-label">{label}</span>
+        <span className="stat-icon">{icon}</span>
+      </div>
+      <div className="stat-value">{value}</div>
+    </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createTripTicket } from "@/app/actions/trip-tickets";
+import { LoaderCircle, Truck } from "lucide-react";
 
 type Schedule = {
   id: string;
@@ -76,240 +77,128 @@ export default function CreateTripTicket({
   }
 
   return (
-    <div
-      style={{
-        marginBottom: "30px",
-        padding: "20px",
-        border: "1px solid #ddd",
-        borderRadius: "10px",
-        background: "#f9fafb",
-      }}
-    >
-      <h2 style={{ marginBottom: "15px" }}>
-        Create Trip Ticket
-      </h2>
+    <section className="card" style={{ marginBottom: "28px" }}>
+      <div className="card-title">
+        <div>
+          <h2>Record New Trip Ticket</h2>
+          <p className="hint">Log waste collection trip, actual hauling load, and driver dispatch.</p>
+        </div>
+        <Truck size={20} color="var(--primary-green)" aria-hidden="true" />
+      </div>
 
       {schedules.length === 0 ? (
-        <p style={{ color: "#991b1b" }}>
-          No collection schedules are available. Please create
-          a collection schedule first.
+        <p className="notice error">
+          No collection schedules are available. Please create a collection schedule first.
         </p>
       ) : (
-        <form onSubmit={handleSubmit}>
-          {/* COLLECTION SCHEDULE */}
-          <label
-            htmlFor="schedule"
-            style={{
-              display: "block",
-              fontWeight: "600",
-              marginBottom: "8px",
-            }}
-          >
-            Collection Schedule
-          </label>
+        <form className="form-grid" onSubmit={handleSubmit}>
+          <div className="form-field full">
+            <label htmlFor="schedule">
+              Linked Collection Schedule <span aria-hidden="true">*</span>
+            </label>
+            <select
+              id="schedule"
+              value={scheduleId}
+              onChange={(event) =>
+                setScheduleId(event.target.value)
+              }
+              disabled={loading}
+              required
+            >
+              {schedules.map((schedule) => (
+                <option key={schedule.id} value={schedule.id}>
+                  {schedule.barangay} —{" "}
+                  {new Date(schedule.collection_time).toLocaleString()}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          <select
-            id="schedule"
-            value={scheduleId}
-            onChange={(event) =>
-              setScheduleId(event.target.value)
-            }
-            disabled={loading}
-            required
-            style={{
-              width: "100%",
-              padding: "10px",
-              marginBottom: "15px",
-              border: "1px solid #ccc",
-              borderRadius: "8px",
-              background: "white",
-            }}
-          >
-            {schedules.map((schedule) => (
-              <option
-                key={schedule.id}
-                value={schedule.id}
-              >
-                {schedule.barangay} —{" "}
-                {new Date(
-                  schedule.collection_time
-                ).toLocaleString()}
-              </option>
-            ))}
-          </select>
+          <div className="form-field">
+            <label htmlFor="driver-name">
+              Driver Full Name <span aria-hidden="true">*</span>
+            </label>
+            <input
+              id="driver-name"
+              type="text"
+              value={driverName}
+              onChange={(event) =>
+                setDriverName(event.target.value)
+              }
+              placeholder="e.g. Juan Perez"
+              required
+            />
+          </div>
 
-          {/* ESTIMATED LOAD */}
-          <label
-            htmlFor="estimated-load"
-            style={{
-              display: "block",
-              fontWeight: "600",
-              marginBottom: "8px",
-            }}
-          >
-            Estimated Load
-          </label>
+          <div className="form-field">
+            <label htmlFor="plate-number">
+              Vehicle Plate Number <span aria-hidden="true">*</span>
+            </label>
+            <input
+              id="plate-number"
+              type="text"
+              value={plateNumber}
+              onChange={(event) =>
+                setPlateNumber(event.target.value)
+              }
+              placeholder="e.g. ABC-1234"
+              required
+            />
+          </div>
 
-          <input
-            id="estimated-load"
-            type="text"
-            value={estimatedLoad}
-            onChange={(event) =>
-              setEstimatedLoad(event.target.value)
-            }
-            placeholder="Example: 5 tons"
-            style={{
-              width: "100%",
-              padding: "10px",
-              marginBottom: "15px",
-              border: "1px solid #ccc",
-              borderRadius: "8px",
-              boxSizing: "border-box",
-            }}
-          />
+          <div className="form-field">
+            <label htmlFor="estimated-load">Estimated Load (e.g. 5 tons)</label>
+            <input
+              id="estimated-load"
+              type="text"
+              value={estimatedLoad}
+              onChange={(event) =>
+                setEstimatedLoad(event.target.value)
+              }
+              placeholder="e.g. 4.5 tons"
+            />
+          </div>
 
-          {/* ACTUAL COLLECTION TIME */}
-          <label
-            htmlFor="actual-collection-time"
-            style={{
-              display: "block",
-              fontWeight: "600",
-              marginBottom: "8px",
-            }}
-          >
-            Actual Collection Time
-          </label>
+          <div className="form-field">
+            <label htmlFor="actual-collection-time">
+              Actual Collection Time
+            </label>
+            <input
+              id="actual-collection-time"
+              type="datetime-local"
+              value={actualCollectionTime}
+              onChange={(event) =>
+                setActualCollectionTime(event.target.value)
+              }
+            />
+          </div>
 
-          <input
-            id="actual-collection-time"
-            type="datetime-local"
-            value={actualCollectionTime}
-            onChange={(event) =>
-              setActualCollectionTime(event.target.value)
-            }
-            style={{
-              width: "100%",
-              padding: "10px",
-              marginBottom: "15px",
-              border: "1px solid #ccc",
-              borderRadius: "8px",
-              boxSizing: "border-box",
-            }}
-          />
+          {error && (
+            <div className="notice error full" role="alert">
+              {error}
+            </div>
+          )}
 
-          {/* DRIVER NAME */}
-          <label
-            htmlFor="driver-name"
-            style={{
-              display: "block",
-              fontWeight: "600",
-              marginBottom: "8px",
-            }}
-          >
-            Driver Name
-          </label>
+          {message && (
+            <div className="notice success full" role="status">
+              {message}
+            </div>
+          )}
 
-          <input
-            id="driver-name"
-            type="text"
-            value={driverName}
-            onChange={(event) =>
-              setDriverName(event.target.value)
-            }
-            placeholder="Enter driver name"
-            required
-            style={{
-              width: "100%",
-              padding: "10px",
-              marginBottom: "15px",
-              border: "1px solid #ccc",
-              borderRadius: "8px",
-              boxSizing: "border-box",
-            }}
-          />
-
-          {/* PLATE NUMBER */}
-          <label
-            htmlFor="plate-number"
-            style={{
-              display: "block",
-              fontWeight: "600",
-              marginBottom: "8px",
-            }}
-          >
-            Plate Number
-          </label>
-
-          <input
-            id="plate-number"
-            type="text"
-            value={plateNumber}
-            onChange={(event) =>
-              setPlateNumber(event.target.value)
-            }
-            placeholder="Example: ABC-1234"
-            required
-            style={{
-              width: "100%",
-              padding: "10px",
-              marginBottom: "15px",
-              border: "1px solid #ccc",
-              borderRadius: "8px",
-              boxSizing: "border-box",
-            }}
-          />
-
-          {/* SUBMIT BUTTON */}
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: "100%",
-              padding: "12px",
-              border: "none",
-              borderRadius: "8px",
-              background: loading ? "#999" : "#166534",
-              color: "white",
-              fontWeight: "600",
-              cursor: loading ? "not-allowed" : "pointer",
-            }}
-          >
-            {loading
-              ? "Creating..."
-              : "Create Trip Ticket"}
-          </button>
+          <div className="form-actions full">
+            <button
+              type="submit"
+              className="button green"
+              disabled={loading}
+            >
+              {loading ? (
+                <LoaderCircle className="spin" size={16} aria-hidden="true" />
+              ) : null}
+              {loading ? "Recording Ticket..." : "Record Trip Ticket"}
+            </button>
+          </div>
         </form>
       )}
-
-      {/* ERROR MESSAGE */}
-      {error && (
-        <div
-          style={{
-            marginTop: "15px",
-            padding: "12px",
-            background: "#fee2e2",
-            color: "#991b1b",
-            borderRadius: "8px",
-          }}
-        >
-          {error}
-        </div>
-      )}
-
-      {/* SUCCESS MESSAGE */}
-      {message && (
-        <div
-          style={{
-            marginTop: "15px",
-            padding: "12px",
-            background: "#dcfce7",
-            color: "#166534",
-            borderRadius: "8px",
-          }}
-        >
-          {message}
-        </div>
-      )}
-    </div>
+    </section>
   );
 }

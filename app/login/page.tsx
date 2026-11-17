@@ -1,262 +1,205 @@
-
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowLeft, ArrowRight, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
-  const supabase = createClient();
   const router = useRouter();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [resetMode, setResetMode] = useState(false);
 
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setLoading(true);
     setMessage("");
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
+    const supabase = createClient();
+
+    if (resetMode) {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) {
+        setMessage(error.message);
+      } else {
+        setMessage("If an account exists for that email, a reset link has been sent.");
+      }
+      setLoading(false);
+      return;
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
       password,
     });
 
     if (error) {
       setMessage(error.message);
-    } else {
-      router.push("/dashboard");
-      router.refresh();
+      setLoading(false);
+      return;
     }
 
-    setLoading(false);
-  }
+    if (data.user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", data.user.id)
+        .maybeSingle();
 
-  async function handlePasswordReset(e: React.FormEvent) {
-    e.preventDefault();
-
-    setLoading(true);
-    setMessage("");
-
-    const { error } = await supabase.auth.resetPasswordForEmail(
-      email.trim(),
-      {
-        redirectTo: `${window.location.origin}/reset-password`,
+      if (profile?.role === "admin") {
+        router.push("/admin");
+        router.refresh();
+        return;
       }
-    );
-
-    if (error) {
-      setMessage(error.message);
-    } else {
-      setMessage(
-        "If an account exists for that email, a password-reset link will be sent. Please check your inbox and spam folder."
-      );
     }
 
-    setLoading(false);
+    router.push("/dashboard");
+    router.refresh();
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        background: "#f4f7fb",
-        padding: "20px",
-      }}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: "420px",
-          background: "white",
-          padding: "30px",
-          borderRadius: "12px",
-          boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-        }}
-      >
-        <h1
-          style={{
-            textAlign: "center",
-            marginBottom: "8px",
-            color: "#166534",
-          }}
-        >
-          EcoGuard
-        </h1>
+    <main className="auth-page">
+      <Link href="/" className="auth-back">
+        <ArrowLeft size={16} aria-hidden="true" /> Back to EcoGuard
+      </Link>
 
-        <p
-          style={{
-            textAlign: "center",
-            color: "#666",
-            marginBottom: "25px",
-          }}
-        >
-          {resetMode ? "Reset Your Password" : "Resident Login"}
-        </p>
+      <section className="auth-card">
+        <div className="auth-brand">
+          <span className="brand-mark">
+            <ShieldCheck size={22} aria-hidden="true" />
+          </span>
+          <strong style={{ fontSize: "20px", color: "var(--dark-forest)" }}>
+            EcoGuard
+          </strong>
+        </div>
 
-        {resetMode ? (
-          <form onSubmit={handlePasswordReset}>
-            <label htmlFor="reset-email">Registered Email</label>
+        <div className="auth-heading">
+          <p className="eyebrow" style={{ justifyContent: "center" }}>
+            Mabini, Batangas
+          </p>
+          <h1>{resetMode ? "Reset your password" : "Welcome back"}</h1>
+          <p>
+            {resetMode
+              ? "Enter your registered email and we will send a secure reset link."
+              : "Sign in to your environmental service portal"}
+          </p>
+        </div>
 
+        <form className="auth-form" onSubmit={submit}>
+          <div className="form-field">
+            <label htmlFor="email">
+              Email address <span aria-hidden="true">*</span>
+            </label>
             <input
-              id="reset-email"
+              id="email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your registered email"
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="you@example.com"
+              autoComplete="email"
               required
-              style={{
-                width: "100%",
-                boxSizing: "border-box",
-                padding: "12px",
-                marginTop: "6px",
-                marginBottom: "16px",
-                border: "1px solid #ccc",
-                borderRadius: "8px",
-              }}
             />
+          </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                width: "100%",
-                padding: "12px",
-                background: "#166534",
-                color: "white",
-                border: "none",
-                borderRadius: "8px",
-                cursor: loading ? "wait" : "pointer",
-                fontWeight: "bold",
-              }}
+          {!resetMode && (
+            <div className="form-field">
+              <div className="form-label-row">
+                <label htmlFor="password">
+                  Password <span aria-hidden="true">*</span>
+                </label>
+                <button
+                  className="text-link"
+                  type="button"
+                  onClick={() => {
+                    setResetMode(true);
+                    setMessage("");
+                  }}
+                >
+                  Forgot password?
+                </button>
+              </div>
+              <div className="password-input-wrap">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Enter your password"
+                  autoComplete="current-password"
+                  required
+                />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  title={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff size={18} aria-hidden="true" />
+                  ) : (
+                    <Eye size={18} aria-hidden="true" />
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <button
+            className="button green auth-submit"
+            type="submit"
+            disabled={loading}
+          >
+            {loading
+              ? "Signing in..."
+              : resetMode
+                ? "Send reset link"
+                : "Sign in to Portal"}
+            {!loading && <ArrowRight size={16} aria-hidden="true" />}
+          </button>
+
+          {message && (
+            <div
+              className={`notice ${message.startsWith("If an") ? "success" : "error"}`}
+              role="alert"
             >
-              {loading ? "Sending..." : "Send Reset Link"}
-            </button>
+              {message}
+            </div>
+          )}
+        </form>
 
+        <div className="auth-divider">
+          <span>or</span>
+        </div>
+
+        <div className="auth-footer">
+          {resetMode ? (
             <button
+              className="text-link"
               type="button"
               onClick={() => {
                 setResetMode(false);
                 setMessage("");
               }}
-              style={{
-                width: "100%",
-                marginTop: "12px",
-                padding: "10px",
-                background: "white",
-                color: "#166534",
-                border: "1px solid #166534",
-                borderRadius: "8px",
-                cursor: "pointer",
-              }}
             >
-              Back to Login
+              Back to sign in
             </button>
-          </form>
-        ) : (
-          <form onSubmit={handleLogin}>
-            <label htmlFor="login-email">Email</label>
-
-            <input
-              id="login-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
-              required
-              style={{
-                width: "100%",
-                boxSizing: "border-box",
-                padding: "12px",
-                marginTop: "6px",
-                marginBottom: "16px",
-                border: "1px solid #ccc",
-                borderRadius: "8px",
-              }}
-            />
-
-            <label htmlFor="login-password">Password</label>
-
-            <input
-              id="login-password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              required
-              style={{
-                width: "100%",
-                boxSizing: "border-box",
-                padding: "12px",
-                marginTop: "6px",
-                marginBottom: "8px",
-                border: "1px solid #ccc",
-                borderRadius: "8px",
-              }}
-            />
-
-            <div style={{ textAlign: "right", marginBottom: "20px" }}>
-              <button
-                type="button"
-                onClick={() => {
-                  setResetMode(true);
-                  setMessage("");
-                }}
-                style={{
-                  border: "none",
-                  background: "none",
-                  color: "#166534",
-                  cursor: "pointer",
-                  padding: 0,
-                  textDecoration: "underline",
-                }}
-              >
-                Forgot Password?
-              </button>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                width: "100%",
-                padding: "12px",
-                background: "#166534",
-                color: "white",
-                border: "none",
-                borderRadius: "8px",
-                cursor: loading ? "wait" : "pointer",
-                fontWeight: "bold",
-              }}
-            >
-              {loading ? "Signing In..." : "Login"}
-            </button>
-          </form>
-        )}
-
-        {message && (
-          <p
-            role="status"
-            style={{
-              marginTop: "20px",
-              textAlign: "center",
-              color: message.includes("If an account exists")
-                ? "#166534"
-                : "#dc2626",
-              overflowWrap: "anywhere",
-            }}
-          >
-            {message}
-          </p>
-        )}
-      </div>
+          ) : (
+            <>
+              New to EcoGuard?{" "}
+              <Link href="/register">Create resident account</Link>
+            </>
+          )}
+        </div>
+      </section>
     </main>
   );
 }

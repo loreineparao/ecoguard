@@ -2,252 +2,231 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { classifyEnvironmentalConcern } from "@/app/actions/gemini";
+import { ArrowLeft, Bot, LoaderCircle, Send, Sparkles } from "lucide-react";
+import {
+  classifyEnvironmentalConcern,
+  type GeminiResult,
+} from "@/app/actions/gemini";
+import ResidentFrame from "@/components/resident-frame";
+import Link from "next/link";
 
 export default function AIAssistantPage() {
   const router = useRouter();
-
   const [concern, setConcern] = useState("");
-  const [result, setResult] = useState<{
-    module: "complaint" | "permit" | "unknown";
-    classification:
-      | "illegal_dumping"
-      | "tree_cutting"
-      | "unknown";
-    message: string;
-  } | null>(null);
-
+  const [result, setResult] = useState<GeminiResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleSubmit() {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setError("");
     setResult(null);
-
-    if (!concern.trim()) {
-      setError("Please describe your environmental concern.");
+    if (!concern.trim() || loading) {
+      if (!concern.trim()) {
+        setError("Please describe your environmental concern.");
+      }
       return;
     }
-
     setLoading(true);
-
-    const response = await classifyEnvironmentalConcern(
-      concern.trim()
-    );
-
-    setLoading(false);
-
-    if (!response.success) {
-  setError(response.error ?? "Unable to process your concern.");
-  return;
-}
-
-if (!response.result) {
-  setError("Gemini returned no classification result.");
-  return;
-}
-
-setResult(response.result);
-  }
-
-  function handleModuleRedirect() {
-    if (!result) {
-      return;
-    }
-
-    if (result.module === "complaint") {
-      router.push("/complaints/new");
-      return;
-    }
-
-    if (result.module === "permit") {
-      router.push("/permits/new");
-      return;
+    try {
+      const response = await classifyEnvironmentalConcern(concern.trim());
+      if (!response.success) {
+        setError(response.error ?? "Unable to process your concern.");
+        return;
+      }
+      if (!response.result) {
+        setError("EcoGuard AI returned no classification result.");
+        return;
+      }
+      setResult(response.result);
+    } catch {
+      setError("An unexpected error occurred while communicating with EcoGuard AI.");
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        padding: "40px 20px",
-        background: "#f5f7fa",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: "700px",
-          margin: "0 auto",
-          background: "white",
-          padding: "30px",
-          borderRadius: "12px",
-          boxShadow: "0 4px 15px rgba(0,0,0,0.08)",
-        }}
-      >
-        <h1
-          style={{
-            fontSize: "28px",
-            fontWeight: "700",
-            marginBottom: "10px",
-          }}
-        >
-          EcoGuard AI Assistant
-        </h1>
+    <ResidentFrame>
+      <div className="form-page-container">
+        <div className="page-header">
+          <div>
+            <p className="eyebrow">RESIDENT PORTAL • MABINI</p>
+            <h1 className="page-title">EcoGuard AI Assistant</h1>
+            <p className="page-subtitle">
+              Get automated guidance on whether your concern requires a complaint report or a permit application.
+            </p>
+          </div>
+          <div className="page-header-actions">
+            <Link className="button secondary" href="/dashboard">
+              <ArrowLeft size={16} aria-hidden="true" /> Back to Dashboard
+            </Link>
+          </div>
+        </div>
 
-        <p
-          style={{
-            color: "#555",
-            marginBottom: "25px",
-            lineHeight: "1.6",
-          }}
-        >
-          Describe your general environmental concern.
-          The AI will help identify the appropriate EcoGuard
-          module.
-        </p>
-
-        <textarea
-          value={concern}
-          onChange={(e) => setConcern(e.target.value)}
-          placeholder="Example: I saw people throwing garbage beside the road."
-          rows={6}
-          style={{
-            width: "100%",
-            padding: "14px",
-            border: "1px solid #ccc",
-            borderRadius: "8px",
-            resize: "vertical",
-            fontSize: "16px",
-            boxSizing: "border-box",
-          }}
-        />
-
-        <p
-          style={{
-            fontSize: "13px",
-            color: "#777",
-            marginTop: "10px",
-          }}
-        >
-          Please do not enter your name, address, phone
-          number, exact location, or other personal
-          information in the AI Assistant.
-        </p>
-
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
-          style={{
-            marginTop: "15px",
-            width: "100%",
-            padding: "14px",
-            border: "none",
-            borderRadius: "8px",
-            background: loading ? "#999" : "#2563eb",
-            color: "white",
-            fontSize: "16px",
-            fontWeight: "600",
-            cursor: loading ? "not-allowed" : "pointer",
-          }}
-        >
-          {loading ? "Analyzing..." : "Ask EcoGuard AI"}
-        </button>
-
-        {error && (
+        <section className="card form-card">
+        <div style={{ display: "flex", gap: "14px", alignItems: "flex-start", marginBottom: "20px" }}>
           <div
             style={{
-              marginTop: "20px",
-              padding: "15px",
-              background: "#fee2e2",
-              color: "#991b1b",
-              borderRadius: "8px",
+              background: "var(--light-green)",
+              color: "var(--primary-green)",
+              borderRadius: "12px",
+              padding: "10px",
+              display: "flex",
             }}
           >
-            {error}
+            <Bot size={28} aria-hidden="true" />
           </div>
-        )}
+          <div>
+            <h2 style={{ color: "var(--dark-forest)", margin: "0 0 6px" }}>
+              How can we help today?
+            </h2>
+            <p className="hint">
+              Describe a general environmental concern in your neighborhood. EcoGuard AI will point you to the correct form.
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", margin: "16px 0 24px" }}>
+          {[
+            "I saw illegal dumping near the road.",
+            "I need a permit before cutting a tree on my property.",
+          ].map((prompt) => (
+            <button
+              key={prompt}
+              type="button"
+              className="button secondary"
+              style={{ fontSize: "12px", padding: "8px 12px", borderRadius: "16px" }}
+              onClick={() => setConcern(prompt)}
+            >
+              <Sparkles size={13} aria-hidden="true" />
+              {prompt}
+            </button>
+          ))}
+        </div>
 
         {result && (
           <div
             style={{
-              marginTop: "25px",
-              padding: "20px",
-              background: "#f0fdf4",
-              border: "1px solid #bbf7d0",
-              borderRadius: "8px",
+              background: "#F8FAFC",
+              border: "1px solid var(--border)",
+              borderRadius: "12px",
+              padding: "16px",
+              marginBottom: "20px",
             }}
           >
-            <h2
-              style={{
-                fontSize: "20px",
-                fontWeight: "700",
-                marginBottom: "10px",
-              }}
-            >
-              AI Guidance
-            </h2>
-
-            <p
-              style={{
-                lineHeight: "1.6",
-                marginBottom: "15px",
-              }}
-            >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+              <Bot size={18} color="var(--primary-green)" aria-hidden="true" />
+              <strong style={{ color: "var(--dark-forest)", fontSize: "14px" }}>
+                EcoGuard AI Recommendation
+              </strong>
+            </div>
+            <p style={{ margin: "0 0 16px", lineHeight: 1.6, color: "var(--text-main)", fontSize: "13.5px" }}>
               {result.message}
             </p>
-
-            {result.module === "complaint" && (
+            {result.module !== "unknown" && result.module !== "general_inquiry" && (
               <button
-                onClick={handleModuleRedirect}
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  border: "none",
-                  borderRadius: "8px",
-                  background: "#16a34a",
-                  color: "white",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                }}
+                className="button green"
+                type="button"
+                onClick={() =>
+                  router.push(
+                    result.module === "complaint"
+                      ? "/complaints/new"
+                      : result.module === "complaint_status"
+                        ? "/complaints"
+                        : result.module === "collection_schedule"
+                          ? "/schedules"
+                          : "/permits/new"
+                  )
+                }
               >
-                Go to Illegal Dumping Complaint
+                {result.module === "complaint"
+                  ? "Open Complaint Submission Form"
+                  : result.module === "complaint_status"
+                    ? "View My Complaints"
+                    : result.module === "collection_schedule"
+                      ? "View Collection Schedules"
+                      : "Open Tree Cutting Permit Form"}
               </button>
-            )}
-
-            {result.module === "permit" && (
-              <button
-                onClick={handleModuleRedirect}
-                style={{
-                  width: "100%",
-                  padding: "12px",
-                  border: "none",
-                  borderRadius: "8px",
-                  background: "#16a34a",
-                  color: "white",
-                  fontWeight: "600",
-                  cursor: "pointer",
-                }}
-              >
-                Go to Tree Cutting Permit
-              </button>
-            )}
-
-            {result.module === "unknown" && (
-              <div
-                style={{
-                  padding: "12px",
-                  background: "#fff7ed",
-                  borderRadius: "8px",
-                  color: "#9a3412",
-                }}
-              >
-                This concern is currently outside the
-                supported EcoGuard modules.
-              </div>
             )}
           </div>
         )}
+
+        {loading && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              padding: "16px",
+              background: "#F8FAFC",
+              borderRadius: "12px",
+              marginBottom: "20px",
+              color: "var(--text-secondary)",
+              fontSize: "13px",
+            }}
+          >
+            <LoaderCircle className="spin" size={18} aria-hidden="true" />
+            Analyzing environmental concern...
+          </div>
+        )}
+
+        {error && (
+          <div className="notice error" role="alert">
+            {error}
+          </div>
+        )}
+
+        <form
+          onSubmit={handleSubmit}
+          style={{
+            display: "flex",
+            gap: "10px",
+            alignItems: "flex-end",
+            border: "1px solid var(--border)",
+            borderRadius: "12px",
+            padding: "12px",
+            background: "var(--white)",
+          }}
+        >
+          <label className="sr-only" htmlFor="concern-input">
+            Describe your concern
+          </label>
+          <textarea
+            id="concern-input"
+            value={concern}
+            onChange={(event) => setConcern(event.target.value)}
+            placeholder="Type your environmental concern here..."
+            rows={3}
+            disabled={loading}
+            style={{
+              flex: 1,
+              border: 0,
+              outline: 0,
+              resize: "none",
+              fontSize: "13.5px",
+              color: "var(--text-main)",
+            }}
+          />
+          <button
+            className="button green"
+            type="submit"
+            disabled={loading || !concern.trim()}
+            style={{ minHeight: "42px", padding: "0 16px" }}
+          >
+            {loading ? (
+              <LoaderCircle className="spin" size={16} aria-hidden="true" />
+            ) : (
+              <Send size={16} aria-hidden="true" />
+            )}
+          </button>
+        </form>
+
+        <p className="hint" style={{ marginTop: "12px", textAlign: "center" }}>
+          For your privacy, please do not include names, phone numbers, or exact addresses in AI prompts.
+        </p>
+      </section>
       </div>
-    </main>
+    </ResidentFrame>
   );
 }

@@ -1,110 +1,36 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { generateReportAction } from "@/app/actions/reports";
 
-export async function generateTripTicketReport() {
-  const supabase = await createClient();
+export async function generateTripTicketReport(startDate?: string, endDate?: string) {
+  const result = await generateReportAction({
+    reportType: "Trip Ticket Report",
+    startDate,
+    endDate,
+  });
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  if (!result.success) {
     return {
       success: false,
-      error: "You must be logged in.",
-    };
-  }
-
-  const { data: profile, error: profileError } =
-    await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle();
-
-  if (profileError) {
-    return {
-      success: false,
-      error: profileError.message,
-    };
-  }
-
-  if (!profile) {
-    return {
-      success: false,
-      error: "User profile not found.",
-    };
-  }
-
-  if (profile.role !== "admin") {
-    return {
-      success: false,
-      error: "Only administrators can generate reports.",
-    };
-  }
-
-  const { data: tickets, error: ticketsError } =
-    await supabase
-      .from("trip_tickets")
-      .select(
-        "id, schedule_id, estimated_load, actual_collection_time, driver_name, plate_number, created_at"
-      );
-
-  if (ticketsError) {
-    return {
-      success: false,
-      error: ticketsError.message,
-    };
-  }
-
-  const totalTickets = tickets.length;
-
-  const completedCollections = tickets.filter(
-    (ticket) => ticket.actual_collection_time
-  ).length;
-
-  const pendingCollections =
-    totalTickets - completedCollections;
-
-  const assignedDrivers = tickets.filter(
-    (ticket) =>
-      ticket.driver_name &&
-      ticket.driver_name.trim().length > 0
-  ).length;
-
-  const assignedVehicles = tickets.filter(
-    (ticket) =>
-      ticket.plate_number &&
-      ticket.plate_number.trim().length > 0
-  ).length;
-
-  const { data: report, error: reportError } =
-    await supabase
-      .from("reports")
-      .insert({
-        report_type: "Garbage Collection Trip Ticket Report",
-        generated_by: user.id,
-      })
-      .select()
-      .single();
-
-  if (reportError) {
-    return {
-      success: false,
-      error: reportError.message,
+      error: result.error,
     };
   }
 
   return {
     success: true,
-    report,
-    summary: {
-      totalTickets,
-      completedCollections,
-      pendingCollections,
-      assignedDrivers,
-      assignedVehicles,
+    report: {
+      id: result.reportId,
+      report_type: result.reportType,
+      generated_at: result.generatedAt,
+      generated_by: result.generatedByName,
     },
+    summary: {
+      totalTickets: result.summary?.totalCount ?? 0,
+      completedCollections: result.summary?.metric1.value ?? 0,
+      pendingCollections: result.summary?.metric2.value ?? 0,
+      assignedDrivers: result.summary?.metric3.value ?? 0,
+      assignedVehicles: result.summary?.metric4?.value ?? 0,
+    },
+    records: result.rows ?? [],
   };
 }
