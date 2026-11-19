@@ -49,7 +49,7 @@ function parseDocFileName(rawName: string): { category: string | null; fileName:
 
 export default function PermitDocumentViewer({
   applicationId,
-  requirements,
+  requirements: _requirements,
 }: PermitDocumentViewerProps) {
   const [documents, setDocuments] = useState<PermitDocument[]>([]);
   const [loading, setLoading] = useState(false);
@@ -126,16 +126,7 @@ export default function PermitDocumentViewer({
     }
   }
 
-  // Detect whether this is a historical application submitted prior to adding the requirement
-  const isLegacyApplication = Boolean(
-    requirements &&
-    typeof requirements === "object" &&
-    !("no_objection" in (requirements as Record<string, unknown>)) &&
-    !("resolution_no_objection" in (requirements as Record<string, unknown>)) &&
-    !("resolution_interposing_no_objection" in (requirements as Record<string, unknown>))
-  );
-
-  // The 4 document clearances + tree photos
+  // The 4 document clearances + tree photos (all strictly enforced)
   const requiredCategories = [
     {
       key: "land_title",
@@ -163,7 +154,7 @@ export default function PermitDocumentViewer({
       name: "Resolution Interposing No Objection",
       docs: noObjectionDocs,
       icon: <FileCheck2 size={16} aria-hidden="true" />,
-      isLegacyOptional: isLegacyApplication,
+      isLegacyOptional: false,
     },
   ];
 
@@ -235,7 +226,7 @@ export default function PermitDocumentViewer({
 
       {loaded && (
         <div style={{ display: "grid", gap: "10px", marginTop: "10px" }}>
-          {/* Required Single Documents (Land Title, Application Letter, Barangay Clearance) */}
+          {/* Required Single Documents (Land Title, Application Letter, Barangay Clearance, Resolution Interposing No Objection) */}
           {requiredCategories.map((cat) => {
             const hasFile = cat.docs.length > 0;
             const primaryDoc = cat.docs[0];
@@ -251,9 +242,13 @@ export default function PermitDocumentViewer({
                   justifyContent: "space-between",
                   alignItems: "center",
                   padding: "12px 14px",
-                  border: "1px solid var(--border)",
+                  border: hasFile
+                    ? "1px solid var(--border)"
+                    : "1px solid rgba(220, 38, 38, 0.25)",
                   borderRadius: "9px",
-                  background: hasFile ? "#F8FAFC" : cat.isLegacyOptional ? "#F8FAFC" : "#FFF7ED",
+                  background: hasFile
+                    ? "var(--surface-elevated, #F8FAFC)"
+                    : "rgba(220, 38, 38, 0.04)",
                   gap: "12px",
                   flexWrap: "wrap",
                 }}
@@ -268,23 +263,40 @@ export default function PermitDocumentViewer({
                       marginBottom: "4px",
                     }}
                   >
-                    <span style={{ color: hasFile ? "var(--primary-green)" : cat.isLegacyOptional ? "#64748B" : "#D97706", display: "flex" }}>
+                    <span
+                      style={{
+                        color: hasFile ? "var(--primary-green)" : "#DC2626",
+                        display: "flex",
+                      }}
+                    >
                       {cat.icon}
                     </span>
                     <strong style={{ fontSize: "13.5px", color: "var(--dark-forest)" }}>
                       {cat.name}
+                      <span
+                        style={{ color: "#EF4444", marginLeft: "4px", fontWeight: 800 }}
+                        aria-label="Required document"
+                        title="Required document"
+                      >
+                        *
+                      </span>
                     </strong>
                     {hasFile ? (
                       <span className="badge resolved" style={{ fontSize: "11px", padding: "2px 8px" }}>
                         <CheckCircle2 size={11} aria-hidden="true" /> Submitted
                       </span>
-                    ) : cat.isLegacyOptional ? (
-                      <span className="badge pending" style={{ fontSize: "11px", padding: "2px 8px" }}>
-                        Not Required (Legacy)
-                      </span>
                     ) : (
-                      <span className="badge rejected" style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderColor: "#FECACA" }}>
-                        <ShieldAlert size={11} aria-hidden="true" /> Missing
+                      <span
+                        className="badge rejected"
+                        style={{
+                          fontSize: "11px",
+                          padding: "2px 8px",
+                          background: "rgba(220, 38, 38, 0.1)",
+                          color: "#DC2626",
+                          borderColor: "rgba(220, 38, 38, 0.25)",
+                        }}
+                      >
+                        <ShieldAlert size={11} aria-hidden="true" /> Required
                       </span>
                     )}
                   </div>
@@ -299,12 +311,22 @@ export default function PermitDocumentViewer({
                       {" · "}
                       <span>Uploaded {new Date(primaryDoc.uploaded_at).toLocaleDateString()}</span>
                     </div>
-                  ) : cat.isLegacyOptional ? (
-                    <span className="hint" style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
-                      Application filed prior to the Resolution Interposing No Objection requirement.
+                  ) : cat.key === "no_objection" ? (
+                    <span
+                      className="hint"
+                      style={{
+                        fontSize: "12px",
+                        color: "#DC2626",
+                        fontWeight: 600,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                      }}
+                    >
+                      Resolution Interposing No Objection is required before this permit can be approved.
                     </span>
                   ) : (
-                    <span className="hint" style={{ fontSize: "12px", color: "#B45309" }}>
+                    <span className="hint" style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
                       No file uploaded to Supabase Storage for this requirement.
                     </span>
                   )}
@@ -341,9 +363,13 @@ export default function PermitDocumentViewer({
           <div
             style={{
               padding: "12px 14px",
-              border: "1px solid var(--border)",
+              border: treePhotosDocs.length > 0
+                ? "1px solid var(--border)"
+                : "1px solid rgba(220, 38, 38, 0.25)",
               borderRadius: "9px",
-              background: treePhotosDocs.length > 0 ? "#F8FAFC" : "#FFF7ED",
+              background: treePhotosDocs.length > 0
+                ? "var(--surface-elevated, #F8FAFC)"
+                : "rgba(220, 38, 38, 0.04)",
             }}
           >
             <div
@@ -357,26 +383,47 @@ export default function PermitDocumentViewer({
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                <span style={{ color: treePhotosDocs.length > 0 ? "var(--primary-green)" : "#D97706", display: "flex" }}>
+                <span
+                  style={{
+                    color: treePhotosDocs.length > 0 ? "var(--primary-green)" : "#DC2626",
+                    display: "flex",
+                  }}
+                >
                   <Camera size={16} aria-hidden="true" />
                 </span>
                 <strong style={{ fontSize: "13.5px", color: "var(--dark-forest)" }}>
                   Photos of the Trees
+                  <span
+                    style={{ color: "#EF4444", marginLeft: "4px", fontWeight: 800 }}
+                    aria-label="Required document"
+                    title="Required document"
+                  >
+                    *
+                  </span>
                 </strong>
                 {treePhotosDocs.length > 0 ? (
                   <span className="badge resolved" style={{ fontSize: "11px", padding: "2px 8px" }}>
                     <CheckCircle2 size={11} aria-hidden="true" /> Submitted ({treePhotosDocs.length} {treePhotosDocs.length === 1 ? "photo" : "photos"})
                   </span>
                 ) : (
-                  <span className="badge rejected" style={{ fontSize: "11px", padding: "2px 8px", background: "#FEF2F2", color: "#DC2626", borderColor: "#FECACA" }}>
-                    <ShieldAlert size={11} aria-hidden="true" /> Missing
+                  <span
+                    className="badge rejected"
+                    style={{
+                      fontSize: "11px",
+                      padding: "2px 8px",
+                      background: "rgba(220, 38, 38, 0.1)",
+                      color: "#DC2626",
+                      borderColor: "rgba(220, 38, 38, 0.25)",
+                    }}
+                  >
+                    <ShieldAlert size={11} aria-hidden="true" /> Required
                   </span>
                 )}
               </div>
 
               {treePhotosDocs.length === 0 && (
-                <span className="hint" style={{ fontSize: "12px", color: "#B45309" }}>
-                  No tree photos uploaded to Supabase Storage.
+                <span className="hint" style={{ fontSize: "12px", color: "#DC2626", fontWeight: 600 }}>
+                  Photos of the trees to be cut are required before permit review.
                 </span>
               )}
             </div>
@@ -503,7 +550,7 @@ export default function PermitDocumentViewer({
                 padding: "12px 14px",
                 border: "1px dashed var(--border)",
                 borderRadius: "9px",
-                background: "#F8FAFC",
+                background: "var(--surface-elevated, #F8FAFC)",
               }}
             >
               <strong
@@ -528,7 +575,7 @@ export default function PermitDocumentViewer({
                         justifyContent: "space-between",
                         alignItems: "center",
                         padding: "8px 12px",
-                        background: "var(--white)",
+                        background: "var(--card-bg, var(--white))",
                         borderRadius: "6px",
                         border: "1px solid var(--border)",
                         gap: "10px",
@@ -544,8 +591,8 @@ export default function PermitDocumentViewer({
                                 fontWeight: 700,
                                 padding: "1px 6px",
                                 borderRadius: "4px",
-                                background: "#E8F5E9",
-                                color: "#1B5E20",
+                                background: "var(--light-green)",
+                                color: "var(--primary-green)",
                               }}
                             >
                               {category}

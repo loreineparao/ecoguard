@@ -18,7 +18,7 @@ export default async function AdminPermitsPage() {
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("full_name, email, role")
+    .select("full_name, email, role, avatar_url")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -49,6 +49,7 @@ export default async function AdminPermitsPage() {
         mode="admin"
         userName={profile.full_name || "MENR Administrator"}
         email={profile.email || user.email}
+        avatarUrl={profile.avatar_url || user.user_metadata?.avatar_url || null}
       >
         <div className="notice error">
           Unable to load permit applications: {applicationsError.message}
@@ -62,6 +63,7 @@ export default async function AdminPermitsPage() {
       mode="admin"
       userName={profile.full_name || "MENR Administrator"}
       email={profile.email || user.email}
+      avatarUrl={profile.avatar_url || user.user_metadata?.avatar_url || null}
     >
       <div className="page-header">
         <div>

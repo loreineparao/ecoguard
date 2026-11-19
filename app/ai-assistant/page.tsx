@@ -108,7 +108,7 @@ export default function AIAssistantPage() {
         {result && (
           <div
             style={{
-              background: "#F8FAFC",
+              background: "var(--surface-elevated)",
               border: "1px solid var(--border)",
               borderRadius: "12px",
               padding: "16px",
@@ -117,14 +117,16 @@ export default function AIAssistantPage() {
           >
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
               <Bot size={18} color="var(--primary-green)" aria-hidden="true" />
-              <strong style={{ color: "var(--dark-forest)", fontSize: "14px" }}>
+              <strong style={{ color: "var(--text-main)", fontSize: "14px" }}>
                 EcoGuard AI Recommendation
               </strong>
             </div>
             <p style={{ margin: "0 0 16px", lineHeight: 1.6, color: "var(--text-main)", fontSize: "13.5px" }}>
               {result.message}
             </p>
-            {result.module !== "unknown" && result.module !== "general_inquiry" && (
+            {result.module !== "unknown" &&
+              result.module !== "general_inquiry" &&
+              result.module !== "out_of_scope" && (
               <button
                 className="button green"
                 type="button"
@@ -136,7 +138,9 @@ export default function AIAssistantPage() {
                         ? "/complaints"
                         : result.module === "collection_schedule"
                           ? "/schedules"
-                          : "/permits/new"
+                          : result.module === "account"
+                            ? "/settings"
+                            : "/permits/new"
                   )
                 }
               >
@@ -146,7 +150,9 @@ export default function AIAssistantPage() {
                     ? "View My Complaints"
                     : result.module === "collection_schedule"
                       ? "View Collection Schedules"
-                      : "Open Tree Cutting Permit Form"}
+                      : result.module === "account"
+                        ? "View Account Settings"
+                        : "Open Tree Cutting Permit Form"}
               </button>
             )}
           </div>
@@ -159,7 +165,7 @@ export default function AIAssistantPage() {
               alignItems: "center",
               gap: "10px",
               padding: "16px",
-              background: "#F8FAFC",
+              background: "var(--surface-elevated)",
               borderRadius: "12px",
               marginBottom: "20px",
               color: "var(--text-secondary)",

@@ -358,12 +358,9 @@ export default function NewComplaintPage() {
               </p>
 
               <div
+                className="gps-location-panel"
                 style={{
-                  background: "#F8FAFC",
                   border: locationFieldError ? "1px solid #DC2626" : "1px solid var(--border)",
-                  borderRadius: "10px",
-                  padding: "14px 16px",
-                  marginTop: "6px",
                 }}
               >
                 <div
@@ -427,22 +424,12 @@ export default function NewComplaintPage() {
 
                 {/* Location Details */}
                 {location && (
-                  <div
-                    style={{
-                      fontSize: "12.5px",
-                      color: "var(--dark-forest)",
-                      background: "#FFFFFF",
-                      border: "1px solid #E2E8F0",
-                      borderRadius: "6px",
-                      padding: "8px 12px",
-                      marginTop: "6px",
-                    }}
-                  >
+                  <div className="location-coords-box">
                     <div>
                       <strong>GPS:</strong> {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
                     </div>
                     {locationAddress && (
-                      <div style={{ color: "var(--text-secondary)", marginTop: "2px" }}>
+                      <div className="location-address-text">
                         <strong>Resolved Address:</strong> {locationAddress}
                       </div>
                     )}
@@ -570,7 +557,7 @@ export default function NewComplaintPage() {
               </div>
             )}
 
-            <div className="form-actions full">
+            <div className="form-actions full" style={{ marginBottom: "32px" }}>
               <Link
                 className={`button secondary ${loading ? "disabled" : ""}`}
                 href="/complaints"

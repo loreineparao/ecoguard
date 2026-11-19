@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 export default function ResidentFrame({ children }: { children: ReactNode }) {
   const [name, setName] = useState("Resident");
   const [email, setEmail] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -20,10 +21,13 @@ export default function ResidentFrame({ children }: { children: ReactNode }) {
       setEmail(user.email ?? null);
       const fallbackName = user.user_metadata?.full_name || "Resident";
       setName(fallbackName);
+      if (user.user_metadata?.avatar_url) {
+        setAvatarUrl(user.user_metadata.avatar_url);
+      }
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, email")
+        .select("full_name, email, avatar_url")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -34,6 +38,9 @@ export default function ResidentFrame({ children }: { children: ReactNode }) {
       if (profile?.email) {
         setEmail(profile.email);
       }
+      if (profile?.avatar_url !== undefined) {
+        setAvatarUrl(profile.avatar_url);
+      }
     }
     void loadUser();
     return () => {
@@ -42,7 +49,7 @@ export default function ResidentFrame({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AppShell mode="resident" userName={name} email={email}>
+    <AppShell mode="resident" userName={name} email={email} avatarUrl={avatarUrl}>
       {children}
     </AppShell>
   );

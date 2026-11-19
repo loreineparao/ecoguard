@@ -1,42 +1,29 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { REPORT_TYPES, type ReportType } from "@/lib/report-constants";
+import type {
+  ReportType,
+  ReportMetric,
+  ReportSummary,
+  ReportColumn,
+  ReportResult,
+} from "@/lib/report-constants";
 
-export type { ReportType };
-
-export type ReportSummary = {
-  totalCount: number;
-  metric1: { label: string; value: number | string };
-  metric2: { label: string; value: number | string };
-  metric3: { label: string; value: number | string };
-  metric4: { label: string; value: number | string };
-};
-
-export type ReportColumn = {
-  key: string;
-  label: string;
-};
-
-export type ReportResult = {
-  success: boolean;
-  error?: string;
-  reportId?: string;
-  reportType?: string;
-  startDate?: string;
-  endDate?: string;
-  generatedAt?: string;
-  generatedByName?: string;
-  summary?: ReportSummary;
-  columns?: ReportColumn[];
-  rows?: Record<string, unknown>[];
+export type {
+  ReportType,
+  ReportMetric,
+  ReportSummary,
+  ReportColumn,
+  ReportResult,
 };
 
 /**
- * Generate a complete, aggregated report based on real database records and date ranges.
+ * Generate an official, isolated audit report based on real database records.
+ * Supports single-day date filter or All-Time records.
  */
 export async function generateReportAction(params: {
   reportType: string;
+  selectDate?: string;
   startDate?: string;
   endDate?: string;
 }): Promise<ReportResult> {
@@ -51,6 +38,14 @@ export async function generateReportAction(params: {
     return {
       success: false,
       error: "You must be authenticated to generate reports.",
+      reportType: "Environmental Complaints Report",
+      isAllTime: true,
+      dateLabel: "All-Time Records",
+      generatedAt: new Date().toISOString(),
+      generatedByName: "System",
+      summary: { totalCount: 0, metrics: [], metric1: { label: "", value: 0 }, metric2: { label: "", value: 0 }, metric3: { label: "", value: 0 }, metric4: { label: "", value: 0 } },
+      columns: [],
+      rows: [],
     };
   }
 
@@ -65,29 +60,64 @@ export async function generateReportAction(params: {
     return {
       success: false,
       error: "Only authorized MENR administrators can generate official reports.",
+      reportType: "Environmental Complaints Report",
+      isAllTime: true,
+      dateLabel: "All-Time Records",
+      generatedAt: new Date().toISOString(),
+      generatedByName: "System",
+      summary: { totalCount: 0, metrics: [], metric1: { label: "", value: 0 }, metric2: { label: "", value: 0 }, metric3: { label: "", value: 0 }, metric4: { label: "", value: 0 } },
+      columns: [],
+      rows: [],
     };
   }
 
-  const { reportType, startDate, endDate } = params;
+  const { reportType, selectDate, startDate, endDate } = params;
 
-  // Normalize report type name for backward compatibility
+  // Determine date boundaries
+  let effectiveStartDate: string | undefined;
+  let effectiveEndDate: string | undefined;
+  let isAllTime = true;
+  let dateLabel = "All-Time Records";
+
+  if (selectDate && selectDate.trim() !== "") {
+    effectiveStartDate = `${selectDate}T00:00:00`;
+    effectiveEndDate = `${selectDate}T23:59:59.999`;
+    isAllTime = false;
+    try {
+      const parsed = new Date(`${selectDate}T00:00:00`);
+      dateLabel = parsed.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+    } catch {
+      dateLabel = selectDate;
+    }
+  } else if (startDate || endDate) {
+    effectiveStartDate = startDate ? `${startDate}T00:00:00` : undefined;
+    effectiveEndDate = endDate ? `${endDate}T23:59:59.999` : undefined;
+    isAllTime = false;
+    dateLabel = `${startDate || "Beginning"} to ${endDate || "Present"}`;
+  }
+
+  // Normalize report type strictly
   let normalizedType: ReportType = "Environmental Complaints Report";
+  const lower = (reportType || "").toLowerCase().trim();
+
   if (
-    reportType === "Tree Cutting Permit Applications Report" ||
-    reportType === "Tree Cutting Permit Report" ||
-    reportType.toLowerCase().includes("permit")
+    lower.includes("tree cutting") ||
+    lower.includes("permit")
   ) {
     normalizedType = "Tree Cutting Permit Applications Report";
   } else if (
-    reportType === "Trip Ticket Report" ||
-    reportType === "Garbage Collection Trip Ticket Report" ||
-    reportType.toLowerCase().includes("trip ticket")
+    lower.includes("trip ticket") ||
+    lower.includes("ticket")
   ) {
-    normalizedType = "Trip Ticket Report";
+    normalizedType = "Garbage Collection Trip Ticket Report";
   } else if (
-    reportType === "Garbage Collection Schedule Report" ||
-    reportType === "Garbage Collection Report" ||
-    reportType.toLowerCase().includes("collection")
+    lower.includes("schedule") ||
+    lower.includes("garbage collection") ||
+    lower.includes("collection")
   ) {
     normalizedType = "Garbage Collection Schedule Report";
   } else {
@@ -108,11 +138,11 @@ export async function generateReportAction(params: {
         .select("id, user_id, category, description, status, assigned_personnel, created_at")
         .order("created_at", { ascending: false });
 
-      if (startDate) {
-        query = query.gte("created_at", `${startDate}T00:00:00`);
+      if (effectiveStartDate) {
+        query = query.gte("created_at", effectiveStartDate);
       }
-      if (endDate) {
-        query = query.lte("created_at", `${endDate}T23:59:59.999`);
+      if (effectiveEndDate) {
+        query = query.lte("created_at", effectiveEndDate);
       }
 
       const [{ data: complaints, error: compErr }, { data: locations }] =
@@ -130,37 +160,44 @@ export async function generateReportAction(params: {
 
       const list = complaints || [];
       const totalCount = list.length;
-      const resolvedCount = list.filter((c) => c.status === "Resolved").length;
-      const pendingCount = list.filter((c) => c.status === "Pending").length;
-      const underReviewCount = list.filter((c) => c.status === "Under Review").length;
-      const dispatchedCount = list.filter((c) => c.status === "Dispatched").length;
+      const pendingCount = list.filter((c) => (c.status || "").toLowerCase() === "pending").length;
+      const underReviewCount = list.filter((c) => (c.status || "").toLowerCase() === "under review").length;
+      const dispatchedCount = list.filter((c) => (c.status || "").toLowerCase() === "dispatched").length;
+      const resolvedCount = list.filter((c) => (c.status || "").toLowerCase() === "resolved").length;
 
       summary = {
         totalCount,
-        metric1: { label: "Resolved Complaints", value: resolvedCount },
-        metric2: { label: "Pending Initial Review", value: pendingCount },
+        metrics: [
+          { label: "Total Complaints", value: totalCount },
+          { label: "Pending Complaints", value: pendingCount, color: "#D97706" },
+          { label: "Under Review", value: underReviewCount, color: "#0284C7" },
+          { label: "Dispatched", value: dispatchedCount, color: "#7C3AED" },
+          { label: "Resolved", value: resolvedCount, color: "#166534" },
+        ],
+        metric1: { label: "Pending Complaints", value: pendingCount },
+        metric2: { label: "Under Review", value: underReviewCount },
         metric3: { label: "Dispatched Actions", value: dispatchedCount },
-        metric4: { label: "Under Evaluation", value: underReviewCount },
+        metric4: { label: "Resolved Complaints", value: resolvedCount },
       };
 
       columns = [
-        { key: "id", label: "Complaint ID" },
-        { key: "category", label: "Category" },
-        { key: "status", label: "Status" },
-        { key: "address", label: "Incident Location / Barangay" },
-        { key: "assigned_personnel", label: "Assigned Inspector" },
-        { key: "created_at", label: "Date Submitted" },
-        { key: "description", label: "Description" },
+        { key: "id", label: "Complaint ID", width: "120px" },
+        { key: "category", label: "Complaint Category", width: "160px" },
+        { key: "status", label: "Status", width: "120px" },
+        { key: "address", label: "Incident Location / Barangay", width: "180px" },
+        { key: "assigned_personnel", label: "Assigned Inspector", width: "160px" },
+        { key: "created_at", label: "Date Submitted", width: "130px" },
+        { key: "description", label: "Description", width: "auto" },
       ];
 
       rows = list.map((c) => ({
         id: c.id,
-        category: c.category || "General",
+        category: c.category || "General Environmental",
         status: c.status || "Pending",
-        address: locMap.get(c.id) || "Mabini Jurisdiction",
+        address: locMap.get(c.id) || "Mabini Area",
         assigned_personnel: c.assigned_personnel || "Unassigned",
         created_at: new Date(c.created_at).toLocaleDateString(),
-        description: c.description || "N/A",
+        description: c.description || "No description provided.",
       }));
     }
 
@@ -173,11 +210,11 @@ export async function generateReportAction(params: {
         .select("id, user_id, applicant_name, documentary_requirements, application_status, submitted_at")
         .order("submitted_at", { ascending: false });
 
-      if (startDate) {
-        query = query.gte("submitted_at", `${startDate}T00:00:00`);
+      if (effectiveStartDate) {
+        query = query.gte("submitted_at", effectiveStartDate);
       }
-      if (endDate) {
-        query = query.lte("submitted_at", `${endDate}T23:59:59.999`);
+      if (effectiveEndDate) {
+        query = query.lte("submitted_at", effectiveEndDate);
       }
 
       const { data: applications, error: appErr } = await query;
@@ -185,14 +222,14 @@ export async function generateReportAction(params: {
 
       const list = applications || [];
       const totalCount = list.length;
-      const approvedCount = list.filter(
-        (a) => (a.application_status || "").toLowerCase() === "approved"
-      ).length;
       const pendingCount = list.filter(
         (a) => (a.application_status || "").toLowerCase().includes("pending")
       ).length;
       const underReviewCount = list.filter(
         (a) => (a.application_status || "").toLowerCase() === "under review"
+      ).length;
+      const approvedCount = list.filter(
+        (a) => (a.application_status || "").toLowerCase() === "approved"
       ).length;
       const rejectedCount = list.filter(
         (a) => (a.application_status || "").toLowerCase() === "rejected"
@@ -200,25 +237,40 @@ export async function generateReportAction(params: {
 
       summary = {
         totalCount,
+        metrics: [
+          { label: "Total Applications", value: totalCount },
+          { label: "Pending Applications", value: pendingCount, color: "#D97706" },
+          { label: "Under Technical Review", value: underReviewCount, color: "#0284C7" },
+          { label: "Approved Permits", value: approvedCount, color: "#166534" },
+          { label: "Disapproved / Rejected", value: rejectedCount, color: "#DC2626" },
+        ],
         metric1: { label: "Approved Permits", value: approvedCount },
-        metric2: { label: "Pending Applications", value: pendingCount },
-        metric3: { label: "Under Technical Review", value: underReviewCount },
-        metric4: { label: "Disapproved / Rejected", value: rejectedCount },
+        metric2: { label: "Pending Review", value: pendingCount },
+        metric3: { label: "Under Review", value: underReviewCount },
+        metric4: { label: "Rejected Applications", value: rejectedCount },
       };
 
       columns = [
-        { key: "id", label: "Application ID" },
-        { key: "applicant_name", label: "Applicant Name" },
-        { key: "application_status", label: "Permit Status" },
-        { key: "submitted_at", label: "Date Submitted" },
-        { key: "requirements_summary", label: "Requirements Filed" },
+        { key: "id", label: "Application ID", width: "120px" },
+        { key: "applicant_name", label: "Applicant Name", width: "200px" },
+        { key: "application_status", label: "Application Status", width: "130px" },
+        { key: "submitted_at", label: "Submission Date", width: "130px" },
+        { key: "requirements_info", label: "Document Review Information", width: "auto" },
       ];
 
       rows = list.map((a) => {
         let reqSummary = "Complete Requirements";
-        if (a.documentary_requirements && typeof a.documentary_requirements === "object") {
-          const keys = Object.keys(a.documentary_requirements as Record<string, unknown>);
-          reqSummary = `${keys.length} document types submitted`;
+        const reqObj = a.documentary_requirements as Record<string, unknown> | null;
+        if (reqObj && typeof reqObj === "object") {
+          const keys = Object.keys(reqObj);
+          const hasResolution = Boolean(
+            reqObj.no_objection === "submitted" ||
+            reqObj.resolution_no_objection === "submitted" ||
+            reqObj.resolution_interposing_no_objection === "submitted" ||
+            reqObj.no_objection === true ||
+            reqObj.resolution_no_objection === true
+          );
+          reqSummary = `${keys.length} documents filed · ${hasResolution ? "Resolution Verified" : "Resolution Pending"}`;
         }
 
         return {
@@ -228,7 +280,7 @@ export async function generateReportAction(params: {
           submitted_at: a.submitted_at
             ? new Date(a.submitted_at).toLocaleDateString()
             : "N/A",
-          requirements_summary: reqSummary,
+          requirements_info: reqSummary,
         };
       });
     }
@@ -242,11 +294,11 @@ export async function generateReportAction(params: {
         .select("id, barangay, collection_time, truck_id, driver_id")
         .order("collection_time", { ascending: true });
 
-      if (startDate) {
-        query = query.gte("collection_time", `${startDate}T00:00:00`);
+      if (effectiveStartDate) {
+        query = query.gte("collection_time", effectiveStartDate);
       }
-      if (endDate) {
-        query = query.lte("collection_time", `${endDate}T23:59:59.999`);
+      if (effectiveEndDate) {
+        query = query.lte("collection_time", effectiveEndDate);
       }
 
       const { data: schedules, error: schedErr } = await query;
@@ -254,25 +306,32 @@ export async function generateReportAction(params: {
 
       const list = schedules || [];
       const totalCount = list.length;
-      const uniqueBarangays = new Set(list.map((s) => s.barangay));
+      const uniqueBarangays = new Set(
+        list.map((s) => s.barangay?.trim()).filter((b): b is string => Boolean(b && b.length > 0))
+      );
       const assignedVehicles = list.filter((s) => s.truck_id && s.truck_id.trim().length > 0).length;
       const assignedDrivers = list.filter((s) => s.driver_id && s.driver_id.trim().length > 0).length;
-      const unassignedCount = totalCount - Math.min(assignedVehicles, assignedDrivers);
 
       summary = {
         totalCount,
+        metrics: [
+          { label: "Total Schedules", value: totalCount },
+          { label: "Barangays Covered", value: uniqueBarangays.size, color: "#166534" },
+          { label: "Assigned Trucks", value: assignedVehicles, color: "#0284C7" },
+          { label: "Assigned Drivers", value: assignedDrivers, color: "#7C3AED" },
+        ],
         metric1: { label: "Barangays Covered", value: uniqueBarangays.size },
-        metric2: { label: "Assigned Vehicles", value: assignedVehicles },
+        metric2: { label: "Assigned Trucks", value: assignedVehicles },
         metric3: { label: "Assigned Drivers", value: assignedDrivers },
-        metric4: { label: "Pending Assignment", value: Math.max(0, unassignedCount) },
+        metric4: { label: "Total Schedules", value: totalCount },
       };
 
       columns = [
-        { key: "id", label: "Schedule ID" },
-        { key: "barangay", label: "Barangay / Collection Area" },
-        { key: "collection_time", label: "Scheduled Collection Time" },
-        { key: "truck_id", label: "Assigned Truck / Vehicle" },
-        { key: "driver_id", label: "Assigned Driver" },
+        { key: "id", label: "Schedule ID", width: "120px" },
+        { key: "barangay", label: "Barangay / Route", width: "200px" },
+        { key: "collection_time", label: "Collection Date & Time", width: "200px" },
+        { key: "truck_id", label: "Assigned Truck", width: "150px" },
+        { key: "driver_id", label: "Assigned Driver", width: "150px" },
       ];
 
       rows = list.map((s) => ({
@@ -287,7 +346,7 @@ export async function generateReportAction(params: {
     }
 
     // ==========================================
-    // 4. Trip Ticket Report
+    // 4. Garbage Collection Trip Ticket Report
     // ==========================================
     else {
       let query = supabase
@@ -295,11 +354,12 @@ export async function generateReportAction(params: {
         .select("id, schedule_id, estimated_load, actual_collection_time, driver_name, plate_number, created_at")
         .order("created_at", { ascending: false });
 
-      if (startDate) {
-        query = query.gte("created_at", `${startDate}T00:00:00`);
+      // If date filtered, filter by actual_collection_time or created_at
+      if (effectiveStartDate) {
+        query = query.gte("created_at", effectiveStartDate);
       }
-      if (endDate) {
-        query = query.lte("created_at", `${endDate}T23:59:59.999`);
+      if (effectiveEndDate) {
+        query = query.lte("created_at", effectiveEndDate);
       }
 
       const [{ data: tickets, error: ticketErr }, { data: schedules }] =
@@ -334,21 +394,27 @@ export async function generateReportAction(params: {
 
       summary = {
         totalCount,
-        metric1: { label: "Completed Waste Hauling Trips", value: completedCount },
+        metrics: [
+          { label: "Total Trip Tickets", value: totalCount },
+          { label: "Completed Collections", value: completedCount, color: "#166534" },
+          { label: "Historical Pending", value: pendingCount, color: "#D97706" },
+          { label: "Assigned Drivers", value: driverSet.size, color: "#7C3AED" },
+          { label: "Assigned Vehicles", value: vehicleSet.size, color: "#0284C7" },
+        ],
+        metric1: { label: "Completed Collections", value: completedCount },
         metric2: { label: "Pending Collections", value: pendingCount },
         metric3: { label: "Assigned Drivers", value: driverSet.size },
         metric4: { label: "Assigned Vehicles", value: vehicleSet.size },
       };
 
       columns = [
-        { key: "id", label: "Trip Ticket ID" },
-        { key: "plate_number", label: "Vehicle Plate" },
-        { key: "driver_name", label: "Driver Name" },
-        { key: "barangay", label: "Barangay Area" },
-        { key: "estimated_load", label: "Estimated Waste Load" },
-        { key: "status", label: "Trip Status" },
-        { key: "actual_collection_time", label: "Actual Collection Time" },
-        { key: "created_at", label: "Recorded Date" },
+        { key: "id", label: "Trip Ticket ID", width: "120px" },
+        { key: "driver_name", label: "Driver Name", width: "180px" },
+        { key: "plate_number", label: "Vehicle Plate", width: "140px" },
+        { key: "barangay", label: "Barangay / Route", width: "180px" },
+        { key: "estimated_load", label: "Estimated Waste Load", width: "150px" },
+        { key: "status", label: "Completion Status", width: "130px" },
+        { key: "actual_collection_time", label: "Actual Collection Time", width: "180px" },
       ];
 
       rows = list.map((t) => {
@@ -361,10 +427,10 @@ export async function generateReportAction(params: {
           driver_name: t.driver_name,
           barangay: sched?.barangay || "Mabini Route",
           estimated_load: t.estimated_load || "Standard Load",
-          status: isDone ? "Completed" : "Pending Collection",
+          status: isDone ? "Completed" : "Pending",
           actual_collection_time: t.actual_collection_time
             ? new Date(t.actual_collection_time).toLocaleString()
-            : "In Progress / Not Recorded",
+            : "Awaiting Log",
           created_at: new Date(t.created_at).toLocaleDateString(),
         };
       });
@@ -378,7 +444,7 @@ export async function generateReportAction(params: {
         generated_by: user.id,
       })
       .select()
-      .single();
+      .maybeSingle();
 
     if (saveErr) {
       console.warn("Could not save to reports archive table:", saveErr.message);
@@ -388,8 +454,11 @@ export async function generateReportAction(params: {
       success: true,
       reportId: savedReport?.id || crypto.randomUUID(),
       reportType: normalizedType,
-      startDate: startDate || undefined,
-      endDate: endDate || undefined,
+      selectDate: selectDate || undefined,
+      startDate: effectiveStartDate,
+      endDate: effectiveEndDate,
+      isAllTime,
+      dateLabel,
       generatedAt: new Date().toISOString(),
       generatedByName: profile.full_name || "MENR Administrator",
       summary,
@@ -397,32 +466,18 @@ export async function generateReportAction(params: {
       rows,
     };
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Error generating report.";
+    const msg = err instanceof Error ? err.message : "Error compiling report.";
     return {
       success: false,
       error: msg,
+      reportType: normalizedType,
+      isAllTime,
+      dateLabel,
+      generatedAt: new Date().toISOString(),
+      generatedByName: profile.full_name || "MENR Administrator",
+      summary: { totalCount: 0, metrics: [], metric1: { label: "", value: 0 }, metric2: { label: "", value: 0 }, metric3: { label: "", value: 0 }, metric4: { label: "", value: 0 } },
+      columns: [],
+      rows: [],
     };
   }
-}
-
-/**
- * Backward compatibility function for legacy createReport
- */
-export async function createReport(reportType: string) {
-  const result = await generateReportAction({ reportType });
-  if (!result.success) {
-    return {
-      success: false,
-      error: result.error,
-    };
-  }
-  return {
-    success: true,
-    report: {
-      id: result.reportId,
-      report_type: result.reportType,
-      generated_at: result.generatedAt,
-      generated_by: result.generatedByName,
-    },
-  };
 }

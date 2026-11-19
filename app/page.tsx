@@ -1,37 +1,22 @@
 import Link from "next/link";
 import Image from "next/image";
-import {
-  ArrowRight,
-  MapPin,
-  ShieldCheck,
-} from "lucide-react";
+import { ArrowRight, MapPin } from "lucide-react";
+import LandingHeader from "@/components/landing-header";
 
 export default function Home() {
   return (
     <main className="landing-page">
-      <nav className="landing-nav" aria-label="Public navigation">
-        <Link className="landing-brand" href="/">
-          <span className="brand-mark">
-            <ShieldCheck size={22} aria-hidden="true" />
-          </span>
-          <span>
-            <strong>EcoGuard</strong>
-            <small>Mabini, Batangas</small>
-          </span>
-        </Link>
-        <div className="landing-nav-actions">
-          <Link className="landing-login" href="/login">
-            Sign in
-          </Link>
-          <Link className="button green" href="/login">
-            Resident Portal <ArrowRight size={15} aria-hidden="true" />
-          </Link>
-        </div>
-      </nav>
+      {/* Background layer with Mabini Municipal Hall fading into EcoGuard dark green */}
+      <div className="landing-backdrop" aria-hidden="true">
+        <div className="landing-backdrop-image" />
+        <div className="landing-backdrop-gradient" />
+      </div>
+
+      <LandingHeader />
 
       <section className="landing-hero">
         <div className="landing-hero-copy">
-          <p className="eyebrow">
+          <p className="eyebrow landing-eyebrow">
             <MapPin size={13} aria-hidden="true" /> MENR SERVICES • MUNICIPALITY OF MABINI
           </p>
           <h1>
@@ -44,7 +29,7 @@ export default function Home() {
             <Link href="/login" className="button green">
               Open Resident Portal <ArrowRight size={16} aria-hidden="true" />
             </Link>
-            <Link href="/login" className="button secondary">
+            <Link href="/login" className="button secondary landing-report-btn">
               Report an Issue
             </Link>
           </div>
@@ -54,8 +39,8 @@ export default function Home() {
           <Image
             src="/images/mabini-logo.png"
             alt="Official Seal of the Municipality of Mabini, Batangas"
-            width={510}
-            height={510}
+            width={380}
+            height={380}
             priority
             className="landing-seal-image"
           />

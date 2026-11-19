@@ -61,29 +61,71 @@ export async function updateTripTicket(
   }
 
   // Validate required fields
-  if (!driverName || driverName.trim().length === 0) {
+  const cleanDriver = driverName?.trim();
+  if (!cleanDriver) {
     return {
       success: false,
-      error: "Driver name is required.",
+      error: "Driver full name is required and cannot be blank.",
     };
   }
 
-  if (!plateNumber || plateNumber.trim().length === 0) {
+  const cleanPlate = plateNumber?.trim();
+  if (!cleanPlate) {
     return {
       success: false,
-      error: "Plate number is required.",
+      error: "Vehicle plate number is required and cannot be blank.",
     };
+  }
+
+  const cleanActualTime = actualCollectionTime?.trim();
+  if (!cleanActualTime) {
+    return {
+      success: false,
+      error: "Actual collection time is required for a completed trip ticket.",
+    };
+  }
+
+  const dateObj = new Date(cleanActualTime);
+  if (isNaN(dateObj.getTime())) {
+    return {
+      success: false,
+      error: "Invalid actual collection time format.",
+    };
+  }
+
+  // Validate estimated load as a nonnegative numeric value
+  let formattedLoad: string | null = null;
+  if (estimatedLoad && estimatedLoad.trim().length > 0) {
+    const rawLoad = estimatedLoad.trim();
+    const match = rawLoad.match(/^([0-9]+(?:\.[0-9]+)?)/);
+    if (!match) {
+      return {
+        success: false,
+        error: "Estimated load must be a valid non-negative number (e.g. 4.5 tons).",
+      };
+    }
+    const val = parseFloat(match[1]);
+    if (isNaN(val) || val < 0) {
+      return {
+        success: false,
+        error: "Estimated load cannot be negative.",
+      };
+    }
+    if (/tons?|kg|tonnes?/i.test(rawLoad)) {
+      formattedLoad = rawLoad;
+    } else {
+      formattedLoad = `${val} tons`;
+    }
   }
 
   // Update trip ticket
   const { error: updateError } = await supabase
     .from("trip_tickets")
     .update({
-      estimated_load: estimatedLoad?.trim() || null,
-      actual_collection_time:
-        actualCollectionTime || null,
-      driver_name: driverName.trim(),
-      plate_number: plateNumber.trim(),
+      estimated_load: formattedLoad,
+      actual_collection_time: cleanActualTime,
+      driver_name: cleanDriver,
+      plate_number: cleanPlate,
     })
     .eq("id", ticketId);
 

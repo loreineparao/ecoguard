@@ -21,7 +21,12 @@ export default async function MyPermitsPage() {
 
   if (!result.success) {
     return (
-      <AppShell mode="resident" userName="Resident" email={user.email}>
+      <AppShell
+        mode="resident"
+        userName="Resident"
+        email={user.email}
+        avatarUrl={user.user_metadata?.avatar_url || null}
+      >
         <div className="notice error">
           Unable to load permit applications: {result.error}
         </div>
@@ -31,7 +36,7 @@ export default async function MyPermitsPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, email")
+    .select("*")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -40,6 +45,7 @@ export default async function MyPermitsPage() {
       mode="resident"
       userName={profile?.full_name || "Resident"}
       email={profile?.email || user.email}
+      avatarUrl={profile?.avatar_url || user.user_metadata?.avatar_url || null}
     >
       <div className="page-header">
         <div>
@@ -93,12 +99,13 @@ export default async function MyPermitsPage() {
               </div>
 
               <div
+                className="permit-applicant-summary-box"
                 style={{
                   display: "grid",
                   gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
                   gap: "12px",
                   padding: "14px",
-                  background: "#F8FAFC",
+                  background: "var(--surface-elevated)",
                   borderRadius: "10px",
                   border: "1px solid var(--border)",
                   margin: "14px 0",
@@ -109,7 +116,7 @@ export default async function MyPermitsPage() {
                   <span style={{ color: "var(--text-secondary)", display: "block", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>
                     Applicant Name
                   </span>
-                  <strong style={{ color: "var(--dark-forest)" }}>
+                  <strong style={{ color: "var(--text-main)" }}>
                     {application.applicant_name}
                   </strong>
                 </div>

@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import CollectionActions from "./CollectionActions";
+import CollectionSchedulesList from "./CollectionSchedulesList";
 import CreateCollectionSchedule from "./CreateCollectionSchedule";
 import AppShell from "@/components/app-shell";
 import Link from "next/link";
-import { ArrowLeft, CalendarDays, Truck } from "lucide-react";
+import { ArrowLeft, Truck } from "lucide-react";
 
 export default async function AdminCollectionPage() {
   const supabase = await createClient();
@@ -20,7 +20,7 @@ export default async function AdminCollectionPage() {
   // Verify admin role
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("full_name, email, role")
+    .select("full_name, email, role, avatar_url")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -52,6 +52,7 @@ export default async function AdminCollectionPage() {
         mode="admin"
         userName={profile.full_name || "MENR Administrator"}
         email={profile.email || user.email}
+        avatarUrl={profile.avatar_url || user.user_metadata?.avatar_url || null}
       >
         <div className="notice error">
           Unable to load collection schedules: {schedulesError.message}
@@ -65,6 +66,7 @@ export default async function AdminCollectionPage() {
       mode="admin"
       userName={profile.full_name || "MENR Administrator"}
       email={profile.email || user.email}
+      avatarUrl={profile.avatar_url || user.user_metadata?.avatar_url || null}
     >
       <div className="page-header">
         <div>
@@ -90,78 +92,7 @@ export default async function AdminCollectionPage() {
         Active Collection Schedules ({schedules?.length ?? 0})
       </h2>
 
-      {!schedules || schedules.length === 0 ? (
-        <section className="card empty-state">
-          No collection schedules have been created yet.
-        </section>
-      ) : (
-        <div style={{ display: "grid", gap: "20px" }}>
-          {schedules.map((schedule) => (
-            <article key={schedule.id} className="card">
-              <div className="card-title">
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <span className="activity-icon" style={{ background: "var(--light-green)", color: "var(--primary-green)" }}>
-                    <CalendarDays size={18} aria-hidden="true" />
-                  </span>
-                  <div>
-                    <h2>{schedule.barangay}</h2>
-                    <span className="muted-id">Schedule ID: {schedule.id}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-                  gap: "12px",
-                  padding: "14px",
-                  background: "#F8FAFC",
-                  borderRadius: "10px",
-                  border: "1px solid var(--border)",
-                  margin: "12px 0",
-                  fontSize: "13px",
-                }}
-              >
-                <div>
-                  <span style={{ color: "var(--text-secondary)", display: "block", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>
-                    Collection Time
-                  </span>
-                  <strong style={{ color: "var(--text-main)" }}>
-                    {new Date(schedule.collection_time).toLocaleString()}
-                  </strong>
-                </div>
-
-                <div>
-                  <span style={{ color: "var(--text-secondary)", display: "block", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>
-                    Assigned Truck
-                  </span>
-                  <strong style={{ color: "var(--dark-forest)" }}>
-                    {schedule.truck_id ?? "Not assigned"}
-                  </strong>
-                </div>
-
-                <div>
-                  <span style={{ color: "var(--text-secondary)", display: "block", fontSize: "11px", fontWeight: 700, textTransform: "uppercase" }}>
-                    Assigned Driver
-                  </span>
-                  <strong style={{ color: "var(--dark-forest)" }}>
-                    {schedule.driver_id ?? "Not assigned"}
-                  </strong>
-                </div>
-              </div>
-
-              <CollectionActions
-                scheduleId={schedule.id}
-                currentBarangay={schedule.barangay}
-                currentCollectionTime={schedule.collection_time}
-                currentTruckId={schedule.truck_id}
-                currentDriverId={schedule.driver_id}
-              />
-            </article>
-          ))}
-        </div>
-      )}
+      <CollectionSchedulesList initialSchedules={schedules ?? []} />
     </AppShell>
   );
 }

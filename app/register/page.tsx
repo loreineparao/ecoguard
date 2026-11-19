@@ -187,7 +187,7 @@ export default function RegisterPage() {
           <span className="brand-mark">
             <ShieldCheck size={22} aria-hidden="true" />
           </span>
-          <strong style={{ fontSize: "20px", color: "var(--dark-forest)" }}>
+          <strong className="text-slate-900 dark:text-white" style={{ fontSize: "20px" }}>
             EcoGuard
           </strong>
         </div>

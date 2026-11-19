@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import FloatingAIAssistant from "@/components/floating-ai-assistant";
+import ThemeToggle from "@/components/theme-toggle";
+import Avatar from "@/components/avatar";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   LayoutDashboard,
@@ -16,12 +18,10 @@ import {
   ChartNoAxesCombined,
   LogOut,
   CircleHelp,
-  Settings,
   ShieldCheck,
   Menu,
   X,
   ChevronDown,
-  User,
   type LucideIcon,
 } from "lucide-react";
 
@@ -30,6 +30,7 @@ type AppShellProps = {
   mode: "resident" | "admin";
   userName: string;
   email?: string | null;
+  avatarUrl?: string | null;
 };
 
 type NavLink = {
@@ -68,12 +69,63 @@ export default function AppShell({
   mode,
   userName,
   email,
+  avatarUrl,
 }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  const [currentAvatar, setCurrentAvatar] = useState<string | null>(avatarUrl || null);
+  const [prevAvatarProp, setPrevAvatarProp] = useState<string | null>(avatarUrl || null);
+
+  if (prevAvatarProp !== (avatarUrl || null)) {
+    setPrevAvatarProp(avatarUrl || null);
+    setCurrentAvatar(avatarUrl || null);
+    if (typeof window !== "undefined" && avatarUrl) {
+      try {
+        localStorage.setItem("ecoguard_cached_avatar", avatarUrl);
+      } catch {
+        // Ignore storage quotas
+      }
+    }
+  }
+
+  useEffect(() => {
+    // Check localStorage cache if avatarUrl wasn't passed initially
+    if (!currentAvatar && typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("ecoguard_cached_avatar");
+        if (cached) setCurrentAvatar(cached);
+      } catch {
+        // Ignore storage errors
+      }
+    }
+
+    function handleAvatarUpdate(e: Event) {
+      const customEvent = e as CustomEvent<{ avatarUrl?: string | null }>;
+      if (customEvent.detail !== undefined) {
+        const nextUrl = customEvent.detail.avatarUrl ?? null;
+        setCurrentAvatar(nextUrl);
+        if (typeof window !== "undefined") {
+          try {
+            if (nextUrl) {
+              localStorage.setItem("ecoguard_cached_avatar", nextUrl);
+            } else {
+              localStorage.removeItem("ecoguard_cached_avatar");
+            }
+          } catch {
+            // Ignore storage errors
+          }
+        }
+      }
+    }
+    window.addEventListener("ecoguard:avatar-updated", handleAvatarUpdate);
+    return () => {
+      window.removeEventListener("ecoguard:avatar-updated", handleAvatarUpdate);
+    };
+  }, [currentAvatar]);
 
   const links = mode === "admin" ? adminLinks : residentLinks;
 
@@ -85,7 +137,7 @@ export default function AppShell({
     setProfileDropdownOpen(false);
   }
 
-  // Close profile dropdown when clicking outside or pressing Escape
+  // Close profile dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent | TouchEvent) {
       if (
@@ -96,24 +148,34 @@ export default function AppShell({
       }
     }
 
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setProfileDropdownOpen(false);
-      }
-    }
-
     if (profileDropdownOpen) {
       document.addEventListener("mousedown", handleClickOutside);
       document.addEventListener("touchstart", handleClickOutside);
-      document.addEventListener("keydown", handleKeyDown);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("touchstart", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [profileDropdownOpen]);
+
+  // Close navigation drawer or profile dropdown on Escape key
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setProfileDropdownOpen(false);
+        setMobileMenuOpen(false);
+      }
+    }
+
+    if (profileDropdownOpen || mobileMenuOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [profileDropdownOpen, mobileMenuOpen]);
 
   // Prevent background scrolling when mobile drawer is open
   useEffect(() => {
@@ -126,15 +188,6 @@ export default function AppShell({
       document.body.style.overflow = "";
     };
   }, [mobileMenuOpen]);
-
-  const initials =
-    userName
-      .split(" ")
-      .filter(Boolean)
-      .map((part) => part[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase() || "EG";
 
   async function handleLogout() {
     setMobileMenuOpen(false);
@@ -175,7 +228,7 @@ export default function AppShell({
               <ShieldCheck size={22} aria-hidden="true" />
             </span>
             <span>
-              <strong>EcoGuard</strong>
+              <strong className="brand-text text-white">EcoGuard</strong>
               <small>
                 {mode === "admin" ? "MENR Office" : "Resident Portal"}
               </small>
@@ -227,15 +280,23 @@ export default function AppShell({
         </nav>
 
         <div className="sidebar-bottom">
-          <div className="sidebar-help">
-            <span className="help-icon">
-              <CircleHelp size={17} />
-            </span>
-            <div>
-              <strong>Need Assistance?</strong>
-              <small>MENR Office, Mabini</small>
+          <Link
+            href="/support/faq"
+            className="sidebar-help-link"
+            onClick={() => setMobileMenuOpen(false)}
+            title="Read EcoGuard FAQs & Support"
+            style={{ textDecoration: "none", color: "inherit", display: "block" }}
+          >
+            <div className="sidebar-help">
+              <span className="help-icon">
+                <CircleHelp size={17} />
+              </span>
+              <div>
+                <strong>Need Assistance?</strong>
+                <small>MENR FAQs & Support</small>
+              </div>
             </div>
-          </div>
+          </Link>
         </div>
       </aside>
 
@@ -246,7 +307,10 @@ export default function AppShell({
             <button
               type="button"
               className="topbar-menu-btn"
-              onClick={() => setMobileMenuOpen(true)}
+              onClick={() => {
+                setProfileDropdownOpen(false);
+                setMobileMenuOpen(true);
+              }}
               aria-label="Open navigation menu"
               aria-expanded={mobileMenuOpen}
               title="Open menu"
@@ -254,36 +318,57 @@ export default function AppShell({
               <Menu size={21} aria-hidden="true" />
             </button>
 
-            <Link
-              href={mode === "admin" ? "/admin" : "/dashboard"}
-              className="topbar-brand"
-            >
-              <span className="topbar-brand-mark">
-                <ShieldCheck size={18} aria-hidden="true" />
-              </span>
-              <strong className="topbar-brand-name">EcoGuard</strong>
-            </Link>
+            {mode === "admin" ? (
+              <>
+                <Link
+                  href="/admin"
+                  className="topbar-brand"
+                >
+                  <span className="topbar-brand-mark">
+                    <ShieldCheck size={18} aria-hidden="true" />
+                  </span>
+                  <strong className="topbar-brand-name text-slate-900 dark:text-white">EcoGuard</strong>
+                </Link>
 
-            <span className="topbar-divider" aria-hidden="true" />
+                <span className="topbar-divider" aria-hidden="true" />
 
-            <div className="topbar-context">
-              {mode === "admin"
-                ? "MENR OFFICE • MABINI, BATANGAS"
-                : "RESIDENT PORTAL • MABINI, BATANGAS"}
-            </div>
+                <div className="topbar-context">
+                  MENR OFFICE • MABINI, BATANGAS
+                </div>
+              </>
+            ) : (
+              <div className="resident-topbar-title-wrap">
+                <span className="resident-title-full">
+                  RESIDENT PORTAL • MABINI, BATANGAS
+                </span>
+                <span className="resident-title-short">
+                  RESIDENT PORTAL
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Profile Dropdown Section in Top-Right Header */}
-          <div className="user-menu-wrapper" ref={profileMenuRef}>
+          <div className="topbar-right" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <ThemeToggle compact />
+            <div className="user-menu-wrapper" ref={profileMenuRef}>
             <button
               type="button"
               className={`user-menu-trigger ${profileDropdownOpen ? "active" : ""}`}
-              onClick={() => setProfileDropdownOpen((prev) => !prev)}
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setProfileDropdownOpen((prev) => !prev);
+              }}
               aria-expanded={profileDropdownOpen}
               aria-haspopup="true"
               aria-label="User profile and account settings"
             >
-              <span className="avatar">{initials}</span>
+              <Avatar
+                src={currentAvatar}
+                name={userName}
+                size={34}
+                className="user-menu-avatar"
+              />
               <span className="user-copy">
                 <strong>{userName || "EcoGuard Resident"}</strong>
                 <small>
@@ -298,60 +383,80 @@ export default function AppShell({
             </button>
 
             {profileDropdownOpen && (
-              <div
-                className="profile-dropdown-card"
-                role="menu"
-                aria-label="User profile menu"
-              >
-                <div className="profile-dropdown-header">
-                  <div className="profile-dropdown-avatar">{initials}</div>
-                  <div className="profile-dropdown-info">
-                    <strong className="profile-dropdown-name">
-                      {userName || (mode === "admin" ? "Administrator" : "EcoGuard Resident")}
-                    </strong>
-                    <span className="profile-dropdown-email" title={email || ""}>
-                      {email || "Registered Resident"}
-                    </span>
-                    <span className="profile-dropdown-badge">
-                      <ShieldCheck size={11} aria-hidden="true" />
-                      {mode === "admin" ? "MENR Administrator" : "Verified Resident"}
-                    </span>
+              <>
+                <div
+                  className="profile-dropdown-backdrop"
+                  onClick={() => setProfileDropdownOpen(false)}
+                  aria-hidden="true"
+                />
+                <div
+                  className="profile-dropdown-card"
+                  role="menu"
+                  aria-label="User profile menu"
+                >
+                  <div className="profile-dropdown-header">
+                    <Avatar
+                      src={currentAvatar}
+                      name={userName}
+                      size={44}
+                      className="profile-dropdown-avatar-img"
+                    />
+                    <div className="profile-dropdown-info">
+                      <strong className="profile-dropdown-name">
+                        {userName || (mode === "admin" ? "Administrator" : "EcoGuard Resident")}
+                      </strong>
+                      <span className="profile-dropdown-email" title={email || ""}>
+                        {email || "Registered Resident"}
+                      </span>
+                      <span className="profile-dropdown-badge">
+                        <ShieldCheck size={11} aria-hidden="true" />
+                        {mode === "admin" ? "MENR Administrator" : "Verified Resident"}
+                      </span>
+                    </div>
                   </div>
-                </div>
 
-                <div className="profile-dropdown-divider" />
+                  <div className="profile-dropdown-divider" />
 
-                <div className="profile-dropdown-menu-list">
-                  <Link
-                    href="/settings"
-                    className="profile-dropdown-item"
-                    onClick={() => setProfileDropdownOpen(false)}
-                    role="menuitem"
-                  >
-                    <span className="profile-dropdown-icon">
-                      <User size={15} aria-hidden="true" />
-                    </span>
-                    <div className="profile-dropdown-item-text">
-                      <strong>Profile Information</strong>
-                      <small>View personal details & barangay</small>
-                    </div>
-                  </Link>
+                  <div className="profile-dropdown-menu-list">
+                    {/* Profile Information: ONLY for Resident Portal. Removed from Admin Portal per specification */}
+                    {mode === "resident" && (
+                      <Link
+                        href="/profile"
+                        className="profile-dropdown-item"
+                        onClick={() => setProfileDropdownOpen(false)}
+                        role="menuitem"
+                      >
+                        <div className="profile-dropdown-item-text">
+                          <strong>Profile Information</strong>
+                          <small>View personal details & barangay</small>
+                        </div>
+                      </Link>
+                    )}
 
-                  <Link
-                    href="/settings"
-                    className="profile-dropdown-item"
-                    onClick={() => setProfileDropdownOpen(false)}
-                    role="menuitem"
-                  >
-                    <span className="profile-dropdown-icon">
-                      <Settings size={15} aria-hidden="true" />
-                    </span>
-                    <div className="profile-dropdown-item-text">
-                      <strong>Settings</strong>
-                      <small>Account preferences & password</small>
-                    </div>
-                  </Link>
-                </div>
+                    <Link
+                      href="/settings"
+                      className="profile-dropdown-item"
+                      onClick={() => setProfileDropdownOpen(false)}
+                      role="menuitem"
+                    >
+                      <div className="profile-dropdown-item-text">
+                        <strong>Settings</strong>
+                        <small>Account preferences & password</small>
+                      </div>
+                    </Link>
+
+                    <Link
+                      href="/about"
+                      className="profile-dropdown-item"
+                      onClick={() => setProfileDropdownOpen(false)}
+                      role="menuitem"
+                    >
+                      <div className="profile-dropdown-item-text">
+                        <strong>About EcoGuard</strong>
+                        <small>Learn about EcoGuard & MENR services</small>
+                      </div>
+                    </Link>
+                  </div>
 
                 <div className="profile-dropdown-divider" />
 
@@ -370,8 +475,10 @@ export default function AppShell({
                   </button>
                 </div>
               </div>
-            )}
+            </>
+          )}
           </div>
+        </div>
         </header>
 
         <main className="page-content">{children}</main>

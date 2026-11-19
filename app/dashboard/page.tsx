@@ -62,7 +62,7 @@ export default async function DashboardPage() {
   ] = await Promise.all([
     supabase
       .from("profiles")
-      .select("full_name, email, role")
+      .select("*")
       .eq("id", user.id)
       .maybeSingle(),
     supabase
@@ -114,6 +114,7 @@ export default async function DashboardPage() {
       mode="resident"
       userName={name}
       email={profile?.email ?? user.email}
+      avatarUrl={profile?.avatar_url || user.user_metadata?.avatar_url || null}
     >
       <div className="page-header" style={{ marginBottom: "24px" }}>
         <div>
@@ -241,36 +242,36 @@ export default async function DashboardPage() {
             </div>
             <div className="quick-actions">
               <Link href="/complaints/new" className="quick-action">
-                <span className="stat-icon" style={{ background: "#E0F2FE", color: "#0284C7" }}>
+                <span className="stat-icon quick-action-icon complaint">
                   <Plus size={17} aria-hidden="true" />
                 </span>
                 <div>
                   <strong>Report an Issue</strong>
                   <small>Submit an illegal dumping or environmental concern</small>
                 </div>
-                <ArrowRight size={15} color="#CBD5E0" aria-hidden="true" />
+                <ArrowRight size={15} className="quick-action-arrow" aria-hidden="true" />
               </Link>
 
               <Link href="/permits/new" className="quick-action">
-                <span className="stat-icon" style={{ background: "var(--light-green)", color: "var(--primary-green)" }}>
+                <span className="stat-icon quick-action-icon permit">
                   <FileCheck2 size={17} aria-hidden="true" />
                 </span>
                 <div>
                   <strong>Apply for Permit</strong>
                   <small>Submit a tree cutting permit application</small>
                 </div>
-                <ArrowRight size={15} color="#CBD5E0" aria-hidden="true" />
+                <ArrowRight size={15} className="quick-action-arrow" aria-hidden="true" />
               </Link>
 
               <Link href="/schedules" className="quick-action">
-                <span className="stat-icon" style={{ background: "#FEF3C7", color: "#D97706" }}>
+                <span className="stat-icon quick-action-icon schedule">
                   <CalendarDays size={17} aria-hidden="true" />
                 </span>
                 <div>
                   <strong>View All Schedules</strong>
                   <small>Check full municipality waste collection dates</small>
                 </div>
-                <ArrowRight size={15} color="#CBD5E0" aria-hidden="true" />
+                <ArrowRight size={15} className="quick-action-arrow" aria-hidden="true" />
               </Link>
             </div>
           </aside>

@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { classifyEnvironmentalConcern } from "@/app/actions/gemini";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
+import {
+  classifyEnvironmentalConcern,
+  type GeminiResult,
+} from "@/app/actions/gemini";
 import {
   deleteChatConversation,
   getChatHistory,
@@ -9,6 +13,7 @@ import {
   type PersistedConversation,
 } from "@/app/actions/chat-history";
 import {
+  ArrowLeft,
   Bot,
   Clock,
   History,
@@ -66,6 +71,48 @@ function formatTimestamp(isoString: string): string {
   } catch {
     return "";
   }
+}
+
+function renderFormattedMessage(content: string): ReactNode {
+  // Regex to match markdown links: [link text](url)
+  const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+  const parts: (string | { text: string; url: string })[] = [];
+  let lastIdx = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = linkRegex.exec(content)) !== null) {
+    if (match.index > lastIdx) {
+      parts.push(content.substring(lastIdx, match.index));
+    }
+    parts.push({ text: match[1], url: match[2] });
+    lastIdx = linkRegex.lastIndex;
+  }
+  if (lastIdx < content.length) {
+    parts.push(content.substring(lastIdx));
+  }
+
+  return parts.map((part, pIdx) => {
+    if (typeof part === "object") {
+      return (
+        <Link
+          key={`link-${pIdx}`}
+          href={part.url}
+          className="chat-action-link"
+        >
+          {part.text}
+        </Link>
+      );
+    }
+
+    // Split text by **bold**
+    const boldParts = part.split(/(\*\*[^*]+\*\*)/g);
+    return boldParts.map((sub, sIdx) => {
+      if (sub.startsWith("**") && sub.endsWith("**") && sub.length > 4) {
+        return <strong key={`b-${pIdx}-${sIdx}`}>{sub.slice(2, -2)}</strong>;
+      }
+      return sub;
+    });
+  });
 }
 
 export default function FloatingAIAssistant() {
@@ -276,7 +323,12 @@ export default function FloatingAIAssistant() {
     setLoading(true);
 
     try {
-      const response = await classifyEnvironmentalConcern(trimmedMessage);
+      const recentHistory = messages
+        .filter((m) => m.id !== "welcome-msg")
+        .slice(-6)
+        .map((m) => ({ role: m.role, content: m.content }));
+
+      const response = await classifyEnvironmentalConcern(trimmedMessage, recentHistory);
 
       // If a newer request has already started, discard this outdated result
       if (requestId !== currentRequestIdRef.current) {
@@ -287,11 +339,10 @@ export default function FloatingAIAssistant() {
 
       if (!response.success || !response.result) {
         assistantReply =
-          "Maaari kang mag-ulat ng illegal dumping sa 'Submit Complaint' o mag-apply para sa 'Tree Cutting Permit' sa ating EcoGuard portal.";
+          "Maaari kang mag-ulat ng illegal dumping sa [Submit Complaint](/complaints/new) o mag-apply para sa [Tree Cutting Permit](/permits/new) sa ating EcoGuard portal.";
       } else {
-        const result = response.result as ClassificationResult | undefined;
         assistantReply =
-          result?.message ??
+          response.result.message ??
           "Matutulungan kita sa pag-file ng illegal dumping complaints at tree cutting permits sa Bayan ng Mabini.";
       }
 
@@ -394,10 +445,10 @@ export default function FloatingAIAssistant() {
                 className="floating-ai-close"
                 type="button"
                 onClick={handleStartNewChat}
-                title="Start New Chat"
-                aria-label="Start New Chat"
+                title="New Chat"
+                aria-label="New Chat"
               >
-                <MessageSquarePlus size={15} aria-hidden="true" />
+                <MessageSquarePlus size={16} aria-hidden="true" />
               </button>
               <button
                 className={`floating-ai-close ${view === "history" ? "active" : ""}`}
@@ -407,69 +458,48 @@ export default function FloatingAIAssistant() {
                     current === "history" ? "chat" : "history"
                   )
                 }
-                title="Conversation History"
-                aria-label="Toggle Conversation History"
+                title={view === "history" ? "Back to Chat" : "Chat History"}
+                aria-label={view === "history" ? "Back to Chat" : "Chat History"}
               >
-                <History size={15} aria-hidden="true" />
+                <History size={16} aria-hidden="true" />
               </button>
               <button
                 className="floating-ai-close"
                 type="button"
                 onClick={() => setOpen(false)}
                 title="Minimize assistant"
-                aria-label="Minimize EcoGuard AI Assistant"
+                aria-label="Minimize assistant"
               >
-                <Minus size={15} aria-hidden="true" />
+                <Minus size={16} aria-hidden="true" />
               </button>
               <button
                 className="floating-ai-close"
                 type="button"
                 onClick={() => setOpen(false)}
                 title="Close assistant"
-                aria-label="Close EcoGuard AI Assistant"
+                aria-label="Close assistant"
               >
-                <X size={15} aria-hidden="true" />
+                <X size={16} aria-hidden="true" />
               </button>
             </div>
           </header>
 
-          {/* Compact Navigation Bar: Chat vs History + New Chat */}
-          <div className="floating-ai-toolbar">
-            <div className="floating-ai-tabs">
-              <button
-                type="button"
-                className={`floating-ai-tab ${view === "chat" ? "active" : ""}`}
-                onClick={() => setView("chat")}
-              >
-                <MessageSquare size={12} aria-hidden="true" />
-                Chat
-              </button>
-              <button
-                type="button"
-                className={`floating-ai-tab ${view === "history" ? "active" : ""}`}
-                onClick={() => setView("history")}
-              >
-                <History size={12} aria-hidden="true" />
-                History
-                {conversations.length > 0 && (
-                  <span className="floating-ai-badge">
-                    {conversations.length}
-                  </span>
-                )}
-              </button>
-            </div>
-            <button
-              type="button"
-              className="floating-ai-new-btn"
-              onClick={handleStartNewChat}
-            >
-              <MessageSquarePlus size={12} aria-hidden="true" />
-              New Chat
-            </button>
-          </div>
-
           {view === "history" ? (
             <div className="floating-ai-history" aria-label="Conversation History">
+              <div className="floating-ai-history-topbar">
+                <button
+                  type="button"
+                  className="floating-ai-back-btn"
+                  onClick={() => setView("chat")}
+                  aria-label="Back to active conversation"
+                >
+                  <ArrowLeft size={13} aria-hidden="true" />
+                  <span>Back to Chat</span>
+                </button>
+                <span className="floating-ai-history-header-count">
+                  {conversations.length} {conversations.length === 1 ? "chat" : "chats"}
+                </span>
+              </div>
               {historyLoading ? (
                 <div className="floating-ai-history-empty">
                   <LoaderCircle className="spin" size={20} aria-hidden="true" />
@@ -577,7 +607,7 @@ export default function FloatingAIAssistant() {
                         <Bot size={13} aria-hidden="true" />
                       </span>
                     )}
-                    <p>{message.content}</p>
+                    <p>{renderFormattedMessage(message.content)}</p>
                   </div>
                 ))}
                 {loading && (

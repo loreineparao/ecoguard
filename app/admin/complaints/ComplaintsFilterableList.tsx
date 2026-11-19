@@ -39,8 +39,7 @@ export default function ComplaintsFilterableList({
   const [categoryFilter, setCategoryFilter] = useState("ALL");
   const [locationFilter, setLocationFilter] = useState("");
   const [inspectorFilter, setInspectorFilter] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
 
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -91,17 +90,35 @@ export default function ComplaintsFilterableList({
         if (!inspector.includes(inspQuery)) return false;
       }
 
-      // 6. Submission Date Range Filter
-      if (startDate) {
-        const itemDate = new Date(item.created_at);
-        const start = new Date(`${startDate}T00:00:00`);
-        if (itemDate < start) return false;
-      }
+      // 6. Submission Date Filter (Single Calendar Date, Philippine Standard Time, UTC+8)
+      if (dateFilter) {
+        if (!item.created_at) return false;
 
-      if (endDate) {
         const itemDate = new Date(item.created_at);
-        const end = new Date(`${endDate}T23:59:59.999`);
-        if (itemDate > end) return false;
+        if (isNaN(itemDate.getTime())) return false;
+
+        // Compare against Asia/Manila calendar date
+        const manilaItemDateStr = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "Asia/Manila",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(itemDate);
+
+        // Calculate Asia/Manila day boundaries (UTC+8)
+        const startOfDay = new Date(`${dateFilter}T00:00:00+08:00`).getTime();
+        const endOfDay = startOfDay + 86400000;
+        const itemTime = itemDate.getTime();
+
+        const inTimeRange = itemTime >= startOfDay && itemTime < endOfDay;
+        const matchesString = manilaItemDateStr === dateFilter;
+
+        // Local browser timezone comparison fallback
+        const localYMD = `${itemDate.getFullYear()}-${String(itemDate.getMonth() + 1).padStart(2, "0")}-${String(itemDate.getDate()).padStart(2, "0")}`;
+
+        if (!matchesString && !inTimeRange && localYMD !== dateFilter) {
+          return false;
+        }
       }
 
       return true;
@@ -113,16 +130,14 @@ export default function ComplaintsFilterableList({
     categoryFilter,
     locationFilter,
     inspectorFilter,
-    startDate,
-    endDate,
+    dateFilter,
   ]);
 
   const secondaryFilterCount =
     (categoryFilter !== "ALL" ? 1 : 0) +
     (locationFilter.trim() !== "" ? 1 : 0) +
     (inspectorFilter.trim() !== "" ? 1 : 0) +
-    (startDate !== "" ? 1 : 0) +
-    (endDate !== "" ? 1 : 0);
+    (dateFilter !== "" ? 1 : 0);
 
   const hasActiveFilters =
     searchTerm.trim() !== "" ||
@@ -135,8 +150,7 @@ export default function ComplaintsFilterableList({
     setCategoryFilter("ALL");
     setLocationFilter("");
     setInspectorFilter("");
-    setStartDate("");
-    setEndDate("");
+    setDateFilter("");
   }
 
   function toggleExpand(id: string) {
@@ -230,82 +244,130 @@ export default function ComplaintsFilterableList({
           </span>
         </div>
 
-        {/* Collapsible Drawer for Secondary Filters */}
+        {/* Collapsible Drawer for Secondary Filters (Task 2: Clean 4-column layout) */}
         {showAdvancedFilters && (
           <div className="admin-filter-drawer">
-            <div className="filter-toolbar-grid">
-              {/* Category */}
-              <div className="filter-field">
-                <label htmlFor="complaint-category-filter">Category</label>
-                <select
-                  id="complaint-category-filter"
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {/* 1. Category */}
+              <div className="flex min-w-0 flex-col gap-2">
+                <label
+                  htmlFor="complaint-category-filter"
+                  className="flex min-h-5 items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]"
                 >
-                  <option value="ALL">All Categories</option>
-                  <option value="Illegal Dumping">Illegal Dumping</option>
-                  {distinctCategories
-                    .filter((cat) => cat !== "Illegal Dumping")
-                    .map((cat) => (
-                      <option key={cat} value={cat}>
-                        {cat}
-                      </option>
-                    ))}
-                </select>
+                  <MessageSquare size={13} aria-hidden="true" className="shrink-0" />
+                  <span>Category</span>
+                </label>
+                <div className="admin-toolbar-input-wrapper">
+                  <select
+                    id="complaint-category-filter"
+                    className="admin-toolbar-input select"
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                  >
+                    <option value="ALL">All Categories</option>
+                    <option value="Illegal Dumping">Illegal Dumping</option>
+                    {distinctCategories
+                      .filter((cat) => cat !== "Illegal Dumping")
+                      .map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                  </select>
+                </div>
               </div>
 
-              {/* Barangay / Location */}
-              <div className="filter-field">
-                <label htmlFor="complaint-location-filter">
-                  <MapPin size={12} aria-hidden="true" /> Location / Barangay
+              {/* 2. Location / Barangay */}
+              <div className="flex min-w-0 flex-col gap-2">
+                <label
+                  htmlFor="complaint-location-filter"
+                  className="flex min-h-5 items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]"
+                >
+                  <MapPin size={13} aria-hidden="true" className="shrink-0" />
+                  <span>Location / Barangay</span>
                 </label>
-                <input
-                  id="complaint-location-filter"
-                  type="text"
-                  placeholder="e.g. Anilao, Poblacion..."
-                  value={locationFilter}
-                  onChange={(e) => setLocationFilter(e.target.value)}
-                />
+                <div className="admin-toolbar-input-wrapper">
+                  <input
+                    id="complaint-location-filter"
+                    type="text"
+                    className="admin-toolbar-input"
+                    placeholder="e.g. Anilao, Poblacion..."
+                    value={locationFilter}
+                    onChange={(e) => setLocationFilter(e.target.value)}
+                  />
+                  {locationFilter && (
+                    <button
+                      type="button"
+                      className="admin-toolbar-clear-input"
+                      onClick={() => setLocationFilter("")}
+                      aria-label="Clear location filter"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {/* Assigned Inspector */}
-              <div className="filter-field">
-                <label htmlFor="complaint-inspector-filter">
-                  <UserCheck size={12} aria-hidden="true" /> Assigned Inspector
+              {/* 3. Assigned Inspector */}
+              <div className="flex min-w-0 flex-col gap-2">
+                <label
+                  htmlFor="complaint-inspector-filter"
+                  className="flex min-h-5 items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]"
+                >
+                  <UserCheck size={13} aria-hidden="true" className="shrink-0" />
+                  <span>Assigned Inspector</span>
                 </label>
-                <input
-                  id="complaint-inspector-filter"
-                  type="text"
-                  placeholder="Personnel name..."
-                  value={inspectorFilter}
-                  onChange={(e) => setInspectorFilter(e.target.value)}
-                />
+                <div className="admin-toolbar-input-wrapper">
+                  <input
+                    id="complaint-inspector-filter"
+                    type="text"
+                    className="admin-toolbar-input"
+                    placeholder="Personnel name..."
+                    value={inspectorFilter}
+                    onChange={(e) => setInspectorFilter(e.target.value)}
+                  />
+                  {inspectorFilter && (
+                    <button
+                      type="button"
+                      className="admin-toolbar-clear-input"
+                      onClick={() => setInspectorFilter("")}
+                      aria-label="Clear inspector filter"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {/* Date From */}
-              <div className="filter-field">
-                <label htmlFor="complaint-start-date">
-                  <Calendar size={12} aria-hidden="true" /> From Date
+              {/* 4. Date (Single Date Picker) */}
+              <div className="flex min-w-0 flex-col gap-2">
+                <label
+                  htmlFor="complaint-date-filter"
+                  className="flex min-h-5 items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]"
+                >
+                  <Calendar size={13} aria-hidden="true" className="shrink-0 text-slate-600 dark:text-white" />
+                  <span>Date</span>
                 </label>
-                <input
-                  id="complaint-start-date"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                />
-              </div>
-
-              {/* Date To */}
-              <div className="filter-field">
-                <label htmlFor="complaint-end-date">
-                  <Calendar size={12} aria-hidden="true" /> To Date
-                </label>
-                <input
-                  id="complaint-end-date"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
+                <div className="admin-toolbar-input-wrapper">
+                  <input
+                    id="complaint-date-filter"
+                    type="date"
+                    className="admin-toolbar-input date"
+                    value={dateFilter}
+                    onChange={(e) => setDateFilter(e.target.value)}
+                  />
+                  {dateFilter && (
+                    <button
+                      type="button"
+                      className="admin-toolbar-clear-input"
+                      onClick={() => setDateFilter("")}
+                      aria-label="Clear date filter"
+                      style={{ right: "32px" }}
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -356,27 +418,14 @@ export default function ComplaintsFilterableList({
                 </button>
               </span>
             )}
-            {startDate !== "" && (
+            {dateFilter !== "" && (
               <span className="admin-filter-chip">
-                From: <strong>{startDate}</strong>
+                Date: <strong>{dateFilter}</strong>
                 <button
                   type="button"
                   className="admin-filter-chip-remove"
-                  onClick={() => setStartDate("")}
-                  title="Remove start date"
-                >
-                  <X size={12} />
-                </button>
-              </span>
-            )}
-            {endDate !== "" && (
-              <span className="admin-filter-chip">
-                To: <strong>{endDate}</strong>
-                <button
-                  type="button"
-                  className="admin-filter-chip-remove"
-                  onClick={() => setEndDate("")}
-                  title="Remove end date"
+                  onClick={() => setDateFilter("")}
+                  title="Remove date filter"
                 >
                   <X size={12} />
                 </button>

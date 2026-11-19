@@ -3,11 +3,11 @@
 import { createClient } from "@/lib/supabase/server";
 
 export async function createTripTicket(
-  scheduleId: string,
-  estimatedLoad: string,
-  actualCollectionTime: string,
   driverName: string,
-  plateNumber: string
+  plateNumber: string,
+  actualCollectionTime: string,
+  estimatedLoad?: string,
+  scheduleId?: string | null
 ) {
   const supabase = await createClient();
 
@@ -52,60 +52,96 @@ export async function createTripTicket(
     };
   }
 
-  // Validate schedule
-  if (!scheduleId) {
-    return {
-      success: false,
-      error: "Schedule ID is required.",
-    };
-  }
-
-  // Check that the schedule exists
-  const { data: schedule, error: scheduleError } = await supabase
-    .from("collection_schedules")
-    .select("id")
-    .eq("id", scheduleId)
-    .maybeSingle();
-
-  if (scheduleError) {
-    return {
-      success: false,
-      error: scheduleError.message,
-    };
-  }
-
-  if (!schedule) {
-    return {
-      success: false,
-      error: "Collection schedule not found.",
-    };
-  }
-
   // Validate required fields
-  if (!driverName || driverName.trim().length === 0) {
+  const cleanDriver = driverName?.trim();
+  if (!cleanDriver) {
     return {
       success: false,
-      error: "Driver name is required.",
+      error: "Driver full name is required and cannot be blank.",
     };
   }
 
-  if (!plateNumber || plateNumber.trim().length === 0) {
+  const cleanPlate = plateNumber?.trim();
+  if (!cleanPlate) {
     return {
       success: false,
-      error: "Plate number is required.",
+      error: "Vehicle plate number is required and cannot be blank.",
     };
   }
 
-  // Create trip ticket
+  // Actual collection time is required because trip tickets represent completed collections
+  const cleanActualTime = actualCollectionTime?.trim();
+  if (!cleanActualTime) {
+    return {
+      success: false,
+      error: "Actual collection time is required to record a completed trip ticket.",
+    };
+  }
+
+  const dateObj = new Date(cleanActualTime);
+  if (isNaN(dateObj.getTime())) {
+    return {
+      success: false,
+      error: "Invalid actual collection time format.",
+    };
+  }
+
+  // Validate estimated load as a nonnegative numeric value
+  let formattedLoad: string | null = null;
+  if (estimatedLoad && estimatedLoad.trim().length > 0) {
+    const rawLoad = estimatedLoad.trim();
+    const match = rawLoad.match(/^([0-9]+(?:\.[0-9]+)?)/);
+    if (!match) {
+      return {
+        success: false,
+        error: "Estimated load must be a valid non-negative number (e.g. 4.5 tons).",
+      };
+    }
+    const val = parseFloat(match[1]);
+    if (isNaN(val) || val < 0) {
+      return {
+        success: false,
+        error: "Estimated load cannot be negative.",
+      };
+    }
+    // Retain existing unit or default to "tons"
+    if (/tons?|kg|tonnes?/i.test(rawLoad)) {
+      formattedLoad = rawLoad;
+    } else {
+      formattedLoad = `${val} tons`;
+    }
+  }
+
+  // If a scheduleId is provided, verify it exists; otherwise allow null
+  let validScheduleId: string | null = null;
+  if (scheduleId && scheduleId.trim()) {
+    const { data: schedule, error: scheduleError } = await supabase
+      .from("collection_schedules")
+      .select("id")
+      .eq("id", scheduleId.trim())
+      .maybeSingle();
+
+    if (scheduleError) {
+      return {
+        success: false,
+        error: scheduleError.message,
+      };
+    }
+
+    if (schedule) {
+      validScheduleId = schedule.id;
+    }
+  }
+
+  // Create trip ticket representing a completed collection
   const { data, error } = await supabase
     .from("trip_tickets")
     .insert({
-      schedule_id: scheduleId,
-      estimated_load: estimatedLoad?.trim() || null,
-      actual_collection_time:
-        actualCollectionTime || null,
-      driver_name: driverName.trim(),
-      plate_number: plateNumber.trim(),
+      schedule_id: validScheduleId,
+      estimated_load: formattedLoad,
+      actual_collection_time: cleanActualTime,
+      driver_name: cleanDriver,
+      plate_number: cleanPlate,
     })
     .select()
     .single();

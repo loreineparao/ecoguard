@@ -24,17 +24,20 @@ function LoginForm() {
   const verifiedParam = searchParams.get("verified");
   const errorParam = searchParams.get("error");
   const messageParam = searchParams.get("message");
+  const noticeParam = searchParams.get("notice");
 
   const defaultMessage =
     verifiedParam === "true"
       ? "Your email address has been successfully verified! You may now sign in."
       : messageParam === "password_reset_success"
         ? "Your password has been successfully updated! You can now sign in with your new password."
-        : errorParam
-          ? decodeURIComponent(errorParam)
-          : "";
+        : noticeParam === "account_deactivated"
+          ? "Your EcoGuard resident account has been successfully deactivated."
+          : errorParam
+            ? decodeURIComponent(errorParam)
+            : "";
   const defaultMessageType =
-    verifiedParam === "true" || messageParam === "password_reset_success"
+    verifiedParam === "true" || messageParam === "password_reset_success" || noticeParam === "account_deactivated"
       ? "success"
       : errorParam
         ? "error"
@@ -218,7 +221,7 @@ function LoginForm() {
           <span className="brand-mark">
             <ShieldCheck size={22} aria-hidden="true" />
           </span>
-          <strong style={{ fontSize: "20px", color: "var(--dark-forest)" }}>
+          <strong className="text-slate-900 dark:text-white" style={{ fontSize: "20px" }}>
             EcoGuard
           </strong>
         </div>

@@ -23,7 +23,7 @@ export default async function ResidentSchedulesPage() {
   const [{ data: profile }, { data: schedules, error }] = await Promise.all([
     supabase
       .from("profiles")
-      .select("full_name, email, role")
+      .select("*")
       .eq("id", user.id)
       .maybeSingle(),
     supabase
@@ -43,6 +43,7 @@ export default async function ResidentSchedulesPage() {
       mode="resident"
       userName={name}
       email={profile?.email ?? user.email}
+      avatarUrl={profile?.avatar_url || user.user_metadata?.avatar_url || null}
     >
       <div className="page-header">
         <div>

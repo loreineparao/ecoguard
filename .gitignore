@@ -45,3 +45,6 @@ next-env.d.ts
 
 # Backup archives
 *.zip
+
+# Agent scratch scripts
+scratch/

@@ -49,6 +49,58 @@ export async function updatePermitStatus(
     };
   }
 
+  // Validate required Resolution Interposing No Objection before approving
+  if (status === "Approved") {
+    const { data: documents, error: docsError } = await supabase
+      .from("permit_documents")
+      .select("file_name")
+      .eq("application_id", applicationId);
+
+    if (docsError) {
+      return {
+        success: false,
+        error: `Unable to verify permit documents: ${docsError.message}`,
+      };
+    }
+
+    const hasNoObjectionDoc = (documents || []).some((doc) => {
+      const lower = (doc.file_name || "").toLowerCase();
+      return (
+        lower.includes("no objection") ||
+        lower.includes("no_objection") ||
+        lower.includes("interposing") ||
+        lower.includes("resolution")
+      );
+    });
+
+    if (!hasNoObjectionDoc) {
+      // Check documentary_requirements JSON in permit_applications
+      const { data: appData } = await supabase
+        .from("permit_applications")
+        .select("documentary_requirements")
+        .eq("id", applicationId)
+        .maybeSingle();
+
+      const reqs = appData?.documentary_requirements as Record<string, unknown> | null;
+      const reqSubmitted = Boolean(
+        reqs &&
+          (reqs.no_objection === "submitted" ||
+            reqs.resolution_no_objection === "submitted" ||
+            reqs.resolution_interposing_no_objection === "submitted" ||
+            reqs.no_objection === true ||
+            reqs.resolution_no_objection === true)
+      );
+
+      if (!hasNoObjectionDoc && !reqSubmitted) {
+        return {
+          success: false,
+          error:
+            "Resolution Interposing No Objection is required before this permit can be approved.",
+        };
+      }
+    }
+  }
+
   // Update permit status
   const { error: updateError } = await supabase
     .from("permit_applications")

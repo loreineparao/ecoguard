@@ -167,3 +167,50 @@ export function validatePassword(password: string): {
     hint: "Strong password length.",
   };
 }
+
+/**
+ * Validates Philippine mobile contact numbers.
+ * Accepts formats:
+ * - 09XXXXXXXXX (11 digits)
+ * - +639XXXXXXXXX (13 characters)
+ * - Space/hyphen-separated variants like '0917 123 4567' or '0917-123-4567'
+ */
+export function validatePhoneNumber(phone: string): {
+  isValid: boolean;
+  error: string | null;
+  formatted: string;
+} {
+  const sanitized = phone.trim().replace(/[\s-]/g, "");
+
+  if (!sanitized) {
+    return {
+      isValid: false,
+      error: "Contact number is required.",
+      formatted: "",
+    };
+  }
+
+  // 11 digits starting with 09
+  if (/^09\d{9}$/.test(sanitized)) {
+    return {
+      isValid: true,
+      error: null,
+      formatted: sanitized,
+    };
+  }
+
+  // International Philippine mobile format +639XXXXXXXXX
+  if (/^\+639\d{9}$/.test(sanitized)) {
+    return {
+      isValid: true,
+      error: null,
+      formatted: `0${sanitized.slice(3)}`, // Normalize to 09...
+    };
+  }
+
+  return {
+    isValid: false,
+    error: "Please enter a valid Philippine mobile number (e.g. 09171234567 or +639171234567).",
+    formatted: sanitized,
+  };
+}

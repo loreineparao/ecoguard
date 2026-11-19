@@ -26,7 +26,12 @@ export default async function ComplaintsPage() {
 
   if (error) {
     return (
-      <AppShell mode="resident" userName="Resident" email={user.email}>
+      <AppShell
+        mode="resident"
+        userName="Resident"
+        email={user.email}
+        avatarUrl={user.user_metadata?.avatar_url || null}
+      >
         <div className="notice error">
           Error loading complaints: {error.message}
         </div>
@@ -50,7 +55,7 @@ export default async function ComplaintsPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("full_name, email")
+    .select("*")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -59,6 +64,7 @@ export default async function ComplaintsPage() {
       mode="resident"
       userName={profile?.full_name || "Resident"}
       email={profile?.email || user.email}
+      avatarUrl={profile?.avatar_url || user.user_metadata?.avatar_url || null}
     >
       <div className="page-header">
         <div>
@@ -116,12 +122,13 @@ export default async function ComplaintsPage() {
               </p>
 
               <div
+                className="complaint-status-info"
                 style={{
                   display: "flex",
                   flexWrap: "wrap",
                   gap: "18px",
                   padding: "12px 14px",
-                  background: "#F8FAFC",
+                  background: "var(--surface-elevated)",
                   borderRadius: "9px",
                   border: "1px solid var(--border)",
                   fontSize: "12px",

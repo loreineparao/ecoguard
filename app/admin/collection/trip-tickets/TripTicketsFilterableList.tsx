@@ -2,16 +2,21 @@
 
 import { useMemo, useState } from "react";
 import TripTicketActions from "./TripTicketActions";
+import ActionMenu from "@/components/action-menu";
+import ConfirmModal from "@/components/confirm-modal";
+import { deleteTripTicket } from "@/app/actions/delete-trip-ticket";
 import {
   Calendar,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
   Clock,
+  Edit,
   MapPin,
   RotateCcw,
   Search,
   SlidersHorizontal,
+  Trash2,
   Truck,
   User,
   X,
@@ -45,16 +50,27 @@ export default function TripTicketsFilterableList({
   tickets,
   schedules,
 }: TripTicketsFilterableListProps) {
+  const [ticketsList, setTicketsList] = useState(tickets);
+  const [prevTickets, setPrevTickets] = useState(tickets);
+  if (tickets !== prevTickets) {
+    setPrevTickets(tickets);
+    setTicketsList(tickets);
+  }
+
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [driverFilter, setDriverFilter] = useState("");
   const [vehicleFilter, setVehicleFilter] = useState("");
   const [barangayFilter, setBarangayFilter] = useState("ALL");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
 
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  // Action Menu and Edit / Delete states
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<TripTicket | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Map schedules by id for fast lookup
   const scheduleMap = useMemo(() => {
@@ -74,7 +90,7 @@ export default function TripTicketsFilterableList({
 
   // Combined filtering
   const filteredTickets = useMemo(() => {
-    return tickets.filter((ticket) => {
+    return ticketsList.filter((ticket) => {
       const schedule = scheduleMap.get(ticket.schedule_id);
       const barangay = ticket.barangay || schedule?.barangay || "";
       const isCompleted = Boolean(ticket.actual_collection_time);
@@ -88,9 +104,8 @@ export default function TripTicketsFilterableList({
         if (!matchesId && !matchesDriver && !matchesPlate) return false;
       }
 
-      // 2. Status Filter
+      // 2. Status Filter (Completed Collections)
       if (statusFilter === "COMPLETED" && !isCompleted) return false;
-      if (statusFilter === "PENDING" && isCompleted) return false;
 
       // 3. Driver Filter
       if (driverFilter.trim()) {
@@ -109,42 +124,53 @@ export default function TripTicketsFilterableList({
         if (barangay.toLowerCase() !== barangayFilter.toLowerCase()) return false;
       }
 
-      // 6. Collection / Creation Date Range
-      const effectiveDateStr = ticket.actual_collection_time || ticket.created_at;
-      if (effectiveDateStr) {
+      // 6. Single Calendar Day Date Filter (Task 4)
+      if (dateFilter) {
+        const effectiveDateStr = ticket.actual_collection_time || ticket.created_at;
+        if (!effectiveDateStr) return false;
+
         const ticketDate = new Date(effectiveDateStr);
-        if (startDate) {
-          const start = new Date(`${startDate}T00:00:00`);
-          if (ticketDate < start) return false;
+
+        // Local calendar comparison
+        const y = ticketDate.getFullYear();
+        const m = String(ticketDate.getMonth() + 1).padStart(2, "0");
+        const d = String(ticketDate.getDate()).padStart(2, "0");
+        const localYMD = `${y}-${m}-${d}`;
+
+        // UTC calendar comparison (safeguard against UTC-stored timestamps)
+        const utcY = ticketDate.getUTCFullYear();
+        const utcM = String(ticketDate.getUTCMonth() + 1).padStart(2, "0");
+        const utcD = String(ticketDate.getUTCDate()).padStart(2, "0");
+        const utcYMD = `${utcY}-${utcM}-${utcD}`;
+
+        // Local day boundaries
+        const startOfDay = new Date(`${dateFilter}T00:00:00`);
+        const endOfDay = new Date(`${dateFilter}T23:59:59.999`);
+        const inLocalRange = ticketDate >= startOfDay && ticketDate <= endOfDay;
+
+        if (localYMD !== dateFilter && utcYMD !== dateFilter && !inLocalRange) {
+          return false;
         }
-        if (endDate) {
-          const end = new Date(`${endDate}T23:59:59.999`);
-          if (ticketDate > end) return false;
-        }
-      } else if (startDate || endDate) {
-        return false;
       }
 
       return true;
     });
   }, [
-    tickets,
+    ticketsList,
     scheduleMap,
     searchTerm,
     statusFilter,
     driverFilter,
     vehicleFilter,
     barangayFilter,
-    startDate,
-    endDate,
+    dateFilter,
   ]);
 
   const secondaryFilterCount =
     (driverFilter.trim() !== "" ? 1 : 0) +
     (vehicleFilter.trim() !== "" ? 1 : 0) +
     (barangayFilter !== "ALL" ? 1 : 0) +
-    (startDate !== "" ? 1 : 0) +
-    (endDate !== "" ? 1 : 0);
+    (dateFilter !== "" ? 1 : 0);
 
   const hasActiveFilters =
     searchTerm.trim() !== "" ||
@@ -157,8 +183,7 @@ export default function TripTicketsFilterableList({
     setDriverFilter("");
     setVehicleFilter("");
     setBarangayFilter("ALL");
-    setStartDate("");
-    setEndDate("");
+    setDateFilter("");
   }
 
   function toggleExpand(id: string) {
@@ -171,6 +196,22 @@ export default function TripTicketsFilterableList({
       }
       return next;
     });
+  }
+
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+
+    const result = await deleteTripTicket(deleteTarget.id);
+    setIsDeleting(false);
+
+    if (!result.success) {
+      alert(result.error ?? "Unable to delete trip ticket.");
+      return;
+    }
+
+    setTicketsList((prev) => prev.filter((t) => t.id !== deleteTarget.id));
+    setDeleteTarget(null);
   }
 
   return (
@@ -194,7 +235,7 @@ export default function TripTicketsFilterableList({
             />
           </div>
 
-          {/* 2. Primary Status Dropdown */}
+          {/* 2. Primary Status Dropdown (Pending Collection removed per Task 1B) */}
           <select
             id="ticket-status-filter"
             className="admin-toolbar-select"
@@ -202,9 +243,8 @@ export default function TripTicketsFilterableList({
             onChange={(e) => setStatusFilter(e.target.value)}
             aria-label="Filter by trip status"
           >
-            <option value="ALL">All Trips</option>
+            <option value="ALL">All Completed Trips</option>
             <option value="COMPLETED">Completed Collection</option>
-            <option value="PENDING">Pending Collection</option>
           </select>
 
           {/* 3. Expandable Filters Toggle Button */}
@@ -245,97 +285,172 @@ export default function TripTicketsFilterableList({
 
           {/* 5. Record Count Badge */}
           <span className="admin-toolbar-count-badge">
-            Showing {filteredTickets.length} of {tickets.length}
+            Showing {filteredTickets.length} of {ticketsList.length}
           </span>
         </div>
 
-        {/* Collapsible Drawer for Secondary Filters */}
+        {/* Collapsible Secondary Filters Panel (Task 1: Consistent 4-column grid) */}
         {showAdvancedFilters && (
           <div className="admin-filter-drawer">
-            <div className="filter-toolbar-grid">
-              {/* Driver */}
-              <div className="filter-field">
-                <label htmlFor="ticket-driver-filter">
-                  <User size={12} aria-hidden="true" /> Assigned Driver
-                </label>
-                <input
-                  id="ticket-driver-filter"
-                  type="text"
-                  placeholder="Driver name..."
-                  value={driverFilter}
-                  onChange={(e) => setDriverFilter(e.target.value)}
-                />
-              </div>
-
-              {/* Vehicle Plate */}
-              <div className="filter-field">
-                <label htmlFor="ticket-vehicle-filter">
-                  <Truck size={12} aria-hidden="true" /> Vehicle Plate No.
-                </label>
-                <input
-                  id="ticket-vehicle-filter"
-                  type="text"
-                  placeholder="e.g. SAA-1234..."
-                  value={vehicleFilter}
-                  onChange={(e) => setVehicleFilter(e.target.value)}
-                />
-              </div>
-
-              {/* Barangay */}
-              <div className="filter-field">
-                <label htmlFor="ticket-barangay-filter">
-                  <MapPin size={12} aria-hidden="true" /> Barangay
-                </label>
-                <select
-                  id="ticket-barangay-filter"
-                  value={barangayFilter}
-                  onChange={(e) => setBarangayFilter(e.target.value)}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {/* 1. Driver Name */}
+              <div className="flex min-w-0 flex-col gap-2">
+                <label
+                  htmlFor="driver-filter"
+                  className="flex min-h-5 items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]"
                 >
-                  <option value="ALL">All Barangays</option>
-                  {distinctBarangays.map((b) => (
-                    <option key={b} value={b}>
-                      {b}
-                    </option>
-                  ))}
-                </select>
+                  <User size={13} aria-hidden="true" className="shrink-0" />
+                  <span>Driver Name</span>
+                </label>
+                <div className="admin-toolbar-input-wrapper">
+                  <input
+                    id="driver-filter"
+                    type="text"
+                    className="admin-toolbar-input"
+                    placeholder="Filter driver name..."
+                    value={driverFilter}
+                    onChange={(e) => setDriverFilter(e.target.value)}
+                  />
+                  {driverFilter && (
+                    <button
+                      type="button"
+                      className="admin-toolbar-clear-input"
+                      onClick={() => setDriverFilter("")}
+                      aria-label="Clear driver filter"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {/* Start Date */}
-              <div className="filter-field">
-                <label htmlFor="ticket-start-date">
-                  <Calendar size={12} aria-hidden="true" /> From Date
+              {/* 2. Vehicle Plate */}
+              <div className="flex min-w-0 flex-col gap-2">
+                <label
+                  htmlFor="vehicle-filter"
+                  className="flex min-h-5 items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]"
+                >
+                  <Truck size={13} aria-hidden="true" className="shrink-0" />
+                  <span>Vehicle Plate</span>
                 </label>
-                <input
-                  id="ticket-start-date"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                />
+                <div className="admin-toolbar-input-wrapper">
+                  <input
+                    id="vehicle-filter"
+                    type="text"
+                    className="admin-toolbar-input"
+                    placeholder="Filter plate number..."
+                    value={vehicleFilter}
+                    onChange={(e) => setVehicleFilter(e.target.value)}
+                  />
+                  {vehicleFilter && (
+                    <button
+                      type="button"
+                      className="admin-toolbar-clear-input"
+                      onClick={() => setVehicleFilter("")}
+                      aria-label="Clear vehicle filter"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {/* End Date */}
-              <div className="filter-field">
-                <label htmlFor="ticket-end-date">
-                  <Calendar size={12} aria-hidden="true" /> To Date
+              {/* 3. Barangay / Route */}
+              <div className="flex min-w-0 flex-col gap-2">
+                <label
+                  htmlFor="barangay-filter"
+                  className="flex min-h-5 items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]"
+                >
+                  <MapPin size={13} aria-hidden="true" className="shrink-0" />
+                  <span>Barangay / Route</span>
                 </label>
-                <input
-                  id="ticket-end-date"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
+                <div className="admin-toolbar-input-wrapper">
+                  <select
+                    id="barangay-filter"
+                    className="admin-toolbar-input select"
+                    value={barangayFilter}
+                    onChange={(e) => setBarangayFilter(e.target.value)}
+                  >
+                    <option value="ALL">All Barangays</option>
+                    {distinctBarangays.map((bgy) => (
+                      <option key={bgy} value={bgy}>
+                        {bgy}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* 4. Date (Single Date Picker) */}
+              <div className="flex min-w-0 flex-col gap-2">
+                <label
+                  htmlFor="ticket-date-filter"
+                  className="flex min-h-5 items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]"
+                >
+                  <Calendar size={13} aria-hidden="true" className="shrink-0 text-slate-600 dark:text-white" />
+                  <span>Date</span>
+                </label>
+                <div className="admin-toolbar-input-wrapper">
+                  <input
+                    id="ticket-date-filter"
+                    type="date"
+                    className="admin-toolbar-input date"
+                    value={dateFilter}
+                    onChange={(e) => setDateFilter(e.target.value)}
+                  />
+                  {dateFilter && (
+                    <button
+                      type="button"
+                      className="admin-toolbar-clear-input"
+                      onClick={() => setDateFilter("")}
+                      aria-label="Clear date filter"
+                      style={{ right: "32px" }}
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Active Secondary Filter Chips */}
-        {secondaryFilterCount > 0 && (
-          <div className="admin-filter-chips-row">
-            <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: 600 }}>
-              Active Filters:
+        {/* Active Filter Chips */}
+        {hasActiveFilters && (
+          <div className="admin-toolbar-chips">
+            <span style={{ fontSize: "12px", color: "var(--text-secondary)", alignSelf: "center" }}>
+              Active filters:
             </span>
-            {driverFilter.trim() !== "" && (
+
+            {searchTerm.trim() && (
+              <span className="admin-filter-chip">
+                Search: <strong>{searchTerm}</strong>
+                <button
+                  type="button"
+                  className="admin-filter-chip-remove"
+                  onClick={() => setSearchTerm("")}
+                  title="Remove search query"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+
+            {statusFilter !== "ALL" && (
+              <span className="admin-filter-chip">
+                Status: <strong>Completed</strong>
+                <button
+                  type="button"
+                  className="admin-filter-chip-remove"
+                  onClick={() => setStatusFilter("ALL")}
+                  title="Reset status"
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+
+            {driverFilter.trim() && (
               <span className="admin-filter-chip">
                 Driver: <strong>{driverFilter}</strong>
                 <button
@@ -348,19 +463,21 @@ export default function TripTicketsFilterableList({
                 </button>
               </span>
             )}
-            {vehicleFilter.trim() !== "" && (
+
+            {vehicleFilter.trim() && (
               <span className="admin-filter-chip">
                 Plate: <strong>{vehicleFilter}</strong>
                 <button
                   type="button"
                   className="admin-filter-chip-remove"
                   onClick={() => setVehicleFilter("")}
-                  title="Remove plate filter"
+                  title="Remove vehicle filter"
                 >
                   <X size={12} />
                 </button>
               </span>
             )}
+
             {barangayFilter !== "ALL" && (
               <span className="admin-filter-chip">
                 Barangay: <strong>{barangayFilter}</strong>
@@ -374,27 +491,15 @@ export default function TripTicketsFilterableList({
                 </button>
               </span>
             )}
-            {startDate !== "" && (
+
+            {dateFilter !== "" && (
               <span className="admin-filter-chip">
-                From: <strong>{startDate}</strong>
+                Date: <strong>{dateFilter}</strong>
                 <button
                   type="button"
                   className="admin-filter-chip-remove"
-                  onClick={() => setStartDate("")}
-                  title="Remove start date"
-                >
-                  <X size={12} />
-                </button>
-              </span>
-            )}
-            {endDate !== "" && (
-              <span className="admin-filter-chip">
-                To: <strong>{endDate}</strong>
-                <button
-                  type="button"
-                  className="admin-filter-chip-remove"
-                  onClick={() => setEndDate("")}
-                  title="Remove end date"
+                  onClick={() => setDateFilter("")}
+                  title="Remove date filter"
                 >
                   <X size={12} />
                 </button>
@@ -431,39 +536,115 @@ export default function TripTicketsFilterableList({
             const barangay = ticket.barangay || schedule?.barangay || "Mabini Area";
             const isCompleted = Boolean(ticket.actual_collection_time);
             const isExpanded = expandedIds.has(ticket.id);
+            const isEditing = editingId === ticket.id;
 
             return (
               <article
                 key={ticket.id}
-                className={`admin-record-card ${isExpanded ? "expanded" : ""}`}
+                className={`admin-record-card ${isExpanded || isEditing ? "expanded" : ""}`}
               >
-                {/* Header Row: Title, ID, and Status Badge */}
-                <div className="admin-record-header">
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-                    <span className="activity-icon" style={{ background: "#E0F2FE", color: "#0284C7" }}>
+                {/* Header Row: Title, ID, Status Badge & Upper-Right ActionMenu */}
+                <div
+                  className="admin-record-header"
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    gap: "12px",
+                    width: "100%",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: "10px",
+                      minWidth: 0,
+                      flex: 1,
+                    }}
+                  >
+                    <span
+                      className="activity-icon"
+                      style={{
+                        background: "#E0F2FE",
+                        color: "#0284C7",
+                        flexShrink: 0,
+                        marginTop: "2px",
+                      }}
+                    >
                       <Truck size={18} aria-hidden="true" />
                     </span>
-                    <div>
-                      <h2 style={{ fontSize: "16px", fontWeight: 700, margin: 0, color: "var(--dark-forest)" }}>
-                        Trip Ticket: {ticket.plate_number}
-                      </h2>
-                      <span className="muted-id" style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
+                    <div style={{ minWidth: 0, flex: 1, wordBreak: "break-word" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <h2
+                          style={{
+                            fontSize: "16px",
+                            fontWeight: 700,
+                            margin: 0,
+                            color: "var(--dark-forest)",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          Trip Ticket: {ticket.plate_number}
+                        </h2>
+                        {/* Status Badge */}
+                        <span className={`badge ${isCompleted ? "resolved" : "pending"}`}>
+                          {isCompleted ? (
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                              <CheckCircle2 size={12} aria-hidden="true" /> Completed
+                            </span>
+                          ) : (
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                              <Clock size={12} aria-hidden="true" /> Pending
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <span
+                        className="muted-id"
+                        style={{
+                          fontSize: "12px",
+                          color: "var(--text-secondary)",
+                          display: "block",
+                          wordBreak: "break-all",
+                          marginTop: "2px",
+                        }}
+                      >
                         ID: {ticket.id}
                       </span>
                     </div>
                   </div>
 
-                  <span className={`badge ${isCompleted ? "resolved" : "pending"}`}>
-                    {isCompleted ? (
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                        <CheckCircle2 size={12} aria-hidden="true" /> Completed
-                      </span>
-                    ) : (
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                        <Clock size={12} aria-hidden="true" /> Pending
-                      </span>
-                    )}
-                  </span>
+                  {/* Upper-Right Three-Dot Action Menu (Pinned to top-right corner on all devices) */}
+                  <div style={{ flexShrink: 0, marginLeft: "auto" }}>
+                    <ActionMenu
+                      items={[
+                        {
+                          label: isEditing ? "Close Edit" : "Edit Trip Ticket",
+                          icon: <Edit size={14} />,
+                          onClick: () => {
+                            setEditingId(isEditing ? null : ticket.id);
+                            if (!expandedIds.has(ticket.id)) {
+                              toggleExpand(ticket.id);
+                            }
+                          },
+                        },
+                        {
+                          label: "Delete Trip Ticket",
+                          icon: <Trash2 size={14} />,
+                          variant: "danger",
+                          onClick: () => setDeleteTarget(ticket),
+                        },
+                      ]}
+                    />
+                  </div>
                 </div>
 
                 {/* Summary Metadata Grid */}
@@ -505,7 +686,7 @@ export default function TripTicketsFilterableList({
                 {/* Collapsed/Expanded Action Footer */}
                 <div className="admin-record-card-footer">
                   <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
-                    {isExpanded ? "Viewing trip details & ticket management" : "Click to view logs & record collection"}
+                    {isExpanded ? "Viewing trip details & ticket management" : "Click to view logs & record details"}
                   </span>
 
                   <button
@@ -538,7 +719,7 @@ export default function TripTicketsFilterableList({
                         gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
                         gap: "12px",
                         padding: "12px 14px",
-                        background: "#F8FAFC",
+                        background: "var(--surface-elevated, #F8FAFC)",
                         borderRadius: "10px",
                         border: "1px solid var(--border)",
                         marginBottom: "16px",
@@ -602,14 +783,23 @@ export default function TripTicketsFilterableList({
                       </div>
                     </div>
 
-                    {/* Trip Ticket Actions (Edit load, set actual time, delete) */}
-                    <TripTicketActions
-                      ticketId={ticket.id}
-                      currentEstimatedLoad={ticket.estimated_load}
-                      currentActualCollectionTime={ticket.actual_collection_time}
-                      currentDriverName={ticket.driver_name}
-                      currentPlateNumber={ticket.plate_number}
-                    />
+                    {/* Edit Form (Revealed ONLY when Edit is selected from ActionMenu) */}
+                    {isEditing && (
+                      <TripTicketActions
+                        ticketId={ticket.id}
+                        currentEstimatedLoad={ticket.estimated_load}
+                        currentActualCollectionTime={ticket.actual_collection_time}
+                        currentDriverName={ticket.driver_name}
+                        currentPlateNumber={ticket.plate_number}
+                        onCancel={() => setEditingId(null)}
+                        onSaved={(updated) => {
+                          setTicketsList((prev) =>
+                            prev.map((t) => (t.id === ticket.id ? { ...t, ...updated } : t))
+                          );
+                          setEditingId(null);
+                        }}
+                      />
+                    )}
                   </div>
                 )}
               </article>
@@ -617,6 +807,18 @@ export default function TripTicketsFilterableList({
           })}
         </div>
       )}
+
+      {/* Delete Confirmation Modal (Task 4) */}
+      <ConfirmModal
+        isOpen={Boolean(deleteTarget)}
+        title="Delete Trip Ticket"
+        description={`Are you sure you want to delete trip ticket #${deleteTarget?.plate_number} (${deleteTarget?.id.slice(0, 8)}...)? This record will be permanently deleted.`}
+        confirmText="Delete Ticket"
+        isDestructive={true}
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onClose={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

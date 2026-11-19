@@ -26,12 +26,12 @@ export default async function AdminPage() {
     await Promise.all([
       supabase
         .from("profiles")
-        .select("full_name, email, role")
+        .select("*")
         .eq("id", user.id)
         .maybeSingle(),
       supabase
         .from("complaints")
-        .select("id, category, status, created_at")
+        .select("id, category, status, created_at, assigned_personnel")
         .order("created_at", { ascending: false }),
       supabase
         .from("permit_applications")
@@ -55,6 +55,7 @@ export default async function AdminPage() {
       mode="admin"
       userName={name}
       email={profile?.email ?? user.email}
+      avatarUrl={profile?.avatar_url || user.user_metadata?.avatar_url || null}
     >
       <div className="page-header">
         <div>
@@ -113,37 +114,85 @@ export default async function AdminPage() {
               No environmental complaints have been submitted yet.
             </div>
           ) : (
-            <div className="table-wrap">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Category</th>
-                    <th>Submitted</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allComplaints.slice(0, 6).map((item) => (
-                    <tr key={item.id}>
-                      <td>
-                        <strong>{item.category}</strong>
-                        <div className="muted-id">Ref: {item.id.slice(0, 8)}…</div>
-                      </td>
-                      <td>{new Date(item.created_at).toLocaleDateString()}</td>
-                      <td>
-                        <span
-                          className={`badge ${item.status
-                            .toLowerCase()
-                            .replaceAll(" ", "-")}`}
-                        >
-                          {item.status}
-                        </span>
-                      </td>
+            <>
+              {/* Desktop & Tablet Table (sm breakpoint and above) */}
+              <div className="table-wrap hidden sm:block">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Category</th>
+                      <th>Submitted</th>
+                      <th>Inspector</th>
+                      <th>Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {allComplaints.slice(0, 6).map((item) => (
+                      <tr key={item.id}>
+                        <td>
+                          <strong>{item.category}</strong>
+                          <div className="muted-id">Ref: {item.id.slice(0, 8)}…</div>
+                        </td>
+                        <td>{new Date(item.created_at).toLocaleDateString()}</td>
+                        <td>{item.assigned_personnel || "Unassigned"}</td>
+                        <td>
+                          <span
+                            className={`badge ${item.status
+                              .toLowerCase()
+                              .replaceAll(" ", "-")}`}
+                          >
+                            {item.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile Record Cards (smartphones below 640px) */}
+              <div className="block sm:hidden space-y-3">
+                {allComplaints.slice(0, 6).map((item) => (
+                  <div
+                    key={item.id}
+                    className="p-3.5 rounded-xl border border-[var(--border)] bg-[var(--surface-elevated)] space-y-2 shadow-xs"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <strong className="block text-sm font-bold text-[var(--dark-forest)] truncate">
+                          {item.category}
+                        </strong>
+                        <span className="text-xs text-[var(--text-secondary)] font-mono">
+                          Ref: {item.id.slice(0, 8)}…
+                        </span>
+                      </div>
+                      <span
+                        className={`badge shrink-0 ${item.status
+                          .toLowerCase()
+                          .replaceAll(" ", "-")}`}
+                      >
+                        {item.status}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col gap-1 text-xs text-[var(--text-secondary)] pt-2 border-t border-[var(--border)]">
+                      <div className="flex items-center justify-between">
+                        <span>Submitted:</span>
+                        <strong className="text-[var(--text-main)] font-semibold">
+                          {new Date(item.created_at).toLocaleDateString()}
+                        </strong>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>Inspector:</span>
+                        <strong className="text-[var(--text-main)] font-medium">
+                          {item.assigned_personnel || "Pending assignment"}
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </section>
 
