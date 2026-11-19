@@ -42,7 +42,7 @@ export async function GET(request: Request) {
       if (isPasswordRecovery) {
         return NextResponse.redirect(`${origin}/auth/reset-password`);
       }
-      return NextResponse.redirect(`${origin}${safeNext}?verified=true`);
+      return NextResponse.redirect(`${origin}/login?status=verified`);
     }
     console.error("Auth callback code exchange error:", error.message);
   }
@@ -57,17 +57,35 @@ export async function GET(request: Request) {
       if (isPasswordRecovery) {
         return NextResponse.redirect(`${origin}/auth/reset-password`);
       }
-      return NextResponse.redirect(`${origin}${safeNext}?verified=true`);
+      return NextResponse.redirect(`${origin}/login?status=verified`);
     }
     console.error("Auth callback verifyOtp error:", error.message);
   }
 
-  // 3. Fallback when parameters are missing or exchange failed
-  const errorMsg = isPasswordRecovery
-    ? "Password reset link has expired or is invalid. Please request a new link."
-    : "Verification link has expired or is invalid. Please sign in or request a new confirmation email.";
+  // 3. Check whether the current user session is already verified before showing an error
+  try {
+    const {
+      data: { user: existingUser },
+    } = await supabase.auth.getUser();
 
+    if (existingUser && existingUser.email_confirmed_at) {
+      return NextResponse.redirect(`${origin}/login?status=already_verified`);
+    }
+  } catch {
+    // Ignore session query error
+  }
+
+  // 4. Fallback when parameters are missing or exchange failed
+  if (isPasswordRecovery) {
+    return NextResponse.redirect(
+      `${origin}/auth/reset-password?error=${encodeURIComponent(
+        "Password reset link has expired or is invalid. Please request a new link."
+      )}`
+    );
+  }
+
+  const errorCode = requestUrl.searchParams.get("error_code") || "otp_expired";
   return NextResponse.redirect(
-    `${origin}/login?error=${encodeURIComponent(errorMsg)}`
+    `${origin}/login?status=expired&error_code=${encodeURIComponent(errorCode)}`
   );
 }

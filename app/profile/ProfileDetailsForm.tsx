@@ -269,10 +269,18 @@ export default function ProfileDetailsForm({
 
         <div className="tiktok-verification-grid">
           <div className="tiktok-v-item">
-            <span className="tiktok-v-label">Verification Status</span>
+            <span className="tiktok-v-label">Email Verification</span>
             <span className="tiktok-v-value success">
+              <Check size={13} aria-hidden="true" />
+              Email Verified
+            </span>
+          </div>
+
+          <div className="tiktok-v-item">
+            <span className="tiktok-v-label">Municipal LGU Verification</span>
+            <span className={`tiktok-v-value ${userRole.toLowerCase().includes("admin") ? "success" : "text-amber-600 dark:text-amber-400"}`}>
               <ShieldCheck size={13} aria-hidden="true" />
-              Verified Mabini Resident
+              {userRole.toLowerCase().includes("admin") ? "Certified MENR Administrator" : "Pending LGU Document Verification"}
             </span>
           </div>
 
@@ -284,9 +292,9 @@ export default function ProfileDetailsForm({
           </div>
 
           <div className="tiktok-v-item">
-            <span className="tiktok-v-label">Verified Document Type</span>
+            <span className="tiktok-v-label">Required Document for LGU Certification</span>
             <span className="tiktok-v-value">
-              Barangay Residency Certificate / Official Government ID
+              Barangay Certificate of Residency / Valid Government ID
             </span>
           </div>
 
@@ -301,7 +309,7 @@ export default function ProfileDetailsForm({
         <div className="tiktok-tamper-notice">
           <Info size={15} style={{ color: "var(--primary-green)", flexShrink: 0, marginTop: "1px" }} />
           <span>
-            <strong>Tamper-Proof Notice:</strong> Resident verification status and official credentials are authenticated directly by municipal authorities. Any modifications require presenting updated documentation to the MENR Office at the Municipal Hall Complex.
+            <strong>LGU Verification Policy:</strong> Creating an account and verifying your email activates your standard portal access. Certified Mabini Resident status is granted after presenting your Barangay Residency Certificate or government ID to the MENR Office at the Municipal Hall Complex.
           </span>
         </div>
       </div>

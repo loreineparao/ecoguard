@@ -19,6 +19,14 @@ export default async function ResidentSchedulesPage() {
   } = await supabase.auth.getUser();
 
   if (!user) redirect("/login");
+  if (!user.email_confirmed_at) {
+    redirect(
+      "/login?error=" +
+        encodeURIComponent(
+          "Your email address has not been confirmed yet. Please verify your email or click below to resend the confirmation link."
+        )
+    );
+  }
 
   const [{ data: profile }, { data: schedules, error }] = await Promise.all([
     supabase

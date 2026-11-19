@@ -21,6 +21,14 @@ export default async function AdminPage() {
   } = await supabase.auth.getUser();
 
   if (!user) redirect("/login");
+  if (!user.email_confirmed_at) {
+    redirect(
+      "/login?error=" +
+        encodeURIComponent(
+          "Your email address has not been confirmed yet. Please verify your email or click below to resend the confirmation link."
+        )
+    );
+  }
 
   const [{ data: profile }, complaints, permits, schedules] =
     await Promise.all([

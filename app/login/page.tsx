@@ -20,34 +20,49 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Read URL query parameters for feedback from /auth/callback and reset flow
+  // Read URL query parameters for feedback from /auth/confirm, /auth/callback, and reset flow
+  const statusParam = searchParams.get("status");
   const verifiedParam = searchParams.get("verified");
+  const verificationParam = searchParams.get("verification");
   const errorParam = searchParams.get("error");
   const messageParam = searchParams.get("message");
   const noticeParam = searchParams.get("notice");
+  const emailParam = searchParams.get("email");
 
-  const defaultMessage =
-    verifiedParam === "true"
-      ? "Your email address has been successfully verified! You may now sign in."
-      : messageParam === "password_reset_success"
-        ? "Your password has been successfully updated! You can now sign in with your new password."
-        : noticeParam === "account_deactivated"
-          ? "Your EcoGuard resident account has been successfully deactivated."
-          : errorParam
-            ? decodeURIComponent(errorParam)
-            : "";
+  const isVerifiedSuccess =
+    statusParam === "verified" || verifiedParam === "true" || verifiedParam === "success";
+  const isAlreadyVerified = statusParam === "already_verified";
+  const isExpired =
+    statusParam === "expired" ||
+    verificationParam === "failed" ||
+    (errorParam &&
+      (decodeURIComponent(errorParam).toLowerCase().includes("expired") ||
+        decodeURIComponent(errorParam).toLowerCase().includes("invalid")));
+
+  const defaultMessage = isVerifiedSuccess
+    ? "Email verified successfully! Your EcoGuard account is now activated. You can sign in to continue."
+    : isAlreadyVerified
+      ? "Your email address has already been verified. You may sign in to your account."
+      : isExpired
+        ? "Your verification link has expired. Please request a new confirmation email."
+        : messageParam === "password_reset_success"
+          ? "Your password has been successfully updated! You can now sign in with your new password."
+          : noticeParam === "account_deactivated"
+            ? "Your EcoGuard resident account has been successfully deactivated."
+            : errorParam
+              ? decodeURIComponent(errorParam)
+              : "";
+
   const defaultMessageType =
-    verifiedParam === "true" || messageParam === "password_reset_success" || noticeParam === "account_deactivated"
+    isVerifiedSuccess || isAlreadyVerified || messageParam === "password_reset_success" || noticeParam === "account_deactivated"
       ? "success"
-      : errorParam
+      : isExpired || errorParam
         ? "error"
         : "";
-  const defaultCanResend = errorParam
-    ? decodeURIComponent(errorParam).toLowerCase().includes("expired") ||
-      decodeURIComponent(errorParam).toLowerCase().includes("invalid")
-    : false;
 
-  const [email, setEmail] = useState("");
+  const defaultCanResend = isExpired;
+
+  const [email, setEmail] = useState(emailParam ? decodeURIComponent(emailParam) : "");
   const [password, setPassword] = useState("");
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
@@ -78,7 +93,7 @@ function LoginForm() {
     setResending(true);
     try {
       const supabase = createClient();
-      const redirectUrl = getAuthRedirectUrl("/auth/callback");
+      const redirectUrl = getAuthRedirectUrl("/auth/confirm");
 
       const { error } = await supabase.auth.resend({
         type: "signup",

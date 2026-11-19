@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { validateEmail, validatePassword } from "@/lib/validators";
+import { validateEmailDomainOnServer } from "@/app/actions/validate-email";
 import { getAuthRedirectUrl } from "@/lib/site-url";
 
 export default function RegisterPage() {
@@ -91,12 +92,22 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const supabase = createClient();
       const cleanEmail = emailValidation.sanitized;
       const cleanName = fullName.trim();
 
-      // Configure redirect URL to /auth/callback
-      const redirectUrl = getAuthRedirectUrl("/auth/callback");
+      // Step 1: Server-side email domain & DNS MX verification before touching Supabase Auth
+      const domainVerification = await validateEmailDomainOnServer(cleanEmail);
+      if (!domainVerification.isValid) {
+        setMessage(domainVerification.error || "Please check your email domain.");
+        setMessageType("error");
+        setLoading(false);
+        return;
+      }
+
+      const supabase = createClient();
+
+      // Configure redirect URL to /auth/confirm
+      const redirectUrl = getAuthRedirectUrl("/auth/confirm");
 
       const { data, error } = await supabase.auth.signUp({
         email: cleanEmail,
@@ -130,7 +141,7 @@ export default function RegisterPage() {
       setRegistrationSuccessEmail(cleanEmail);
       setMessageType("success");
       setMessage(
-        `Registration successful! A verification link has been sent to ${cleanEmail}. Please check your inbox (and Spam/Junk folder) to verify your account before signing in.`
+        `Registration submitted! If this is an active deliverable email address, an activation link has been dispatched to ${cleanEmail}. Please check your inbox (and Spam/Junk folder) to activate your account before signing in.`
       );
       setResendCooldown(60); // 60-second cooldown
     } catch (err: unknown) {
@@ -151,7 +162,7 @@ export default function RegisterPage() {
 
     try {
       const supabase = createClient();
-      const redirectUrl = getAuthRedirectUrl("/auth/callback");
+      const redirectUrl = getAuthRedirectUrl("/auth/confirm");
 
       const { error } = await supabase.auth.resend({
         type: "signup",
@@ -343,15 +354,41 @@ export default function RegisterPage() {
                 }
               />
               {emailTouched && !emailValidation.isValid && (
-                <p id="email-error" className="field-error-text" role="alert">
-                  <AlertCircle size={13} style={{ display: "inline", verticalAlign: "-2px", marginRight: "4px" }} />
-                  {emailValidation.error}
-                </p>
+                <div id="email-error" className="field-error-text" role="alert" style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "4px" }}>
+                  <p style={{ margin: 0, display: "flex", alignItems: "center", gap: "4px" }}>
+                    <AlertCircle size={13} style={{ flexShrink: 0 }} />
+                    <span>{emailValidation.error}</span>
+                  </p>
+                  {emailValidation.suggestedEmail && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEmail(emailValidation.suggestedEmail!);
+                        setEmailTouched(true);
+                      }}
+                      className="suggestion-chip"
+                      style={{
+                        alignSelf: "flex-start",
+                        background: "rgba(5, 150, 105, 0.12)",
+                        border: "1px solid rgba(5, 150, 105, 0.4)",
+                        borderRadius: "6px",
+                        color: "#059669",
+                        cursor: "pointer",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        padding: "3px 8px",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      Use {emailValidation.suggestion}
+                    </button>
+                  )}
+                </div>
               )}
               {emailTouched && email.length > 0 && emailValidation.isValid && (
-                <p className="field-success-text">
+                <p className="field-success-text" style={{ marginTop: "4px" }}>
                   <CheckCircle2 size={13} style={{ display: "inline", verticalAlign: "-2px", marginRight: "4px" }} />
-                  Valid email format.
+                  Valid email syntax
                 </p>
               )}
             </div>

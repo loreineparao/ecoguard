@@ -16,6 +16,14 @@ export default async function MyPermitsPage() {
   if (!user) {
     redirect("/login");
   }
+  if (!user.email_confirmed_at) {
+    redirect(
+      "/login?error=" +
+        encodeURIComponent(
+          "Your email address has not been confirmed yet. Please verify your email or click below to resend the confirmation link."
+        )
+    );
+  }
 
   const result = await getMyPermitApplications();
 

@@ -21,7 +21,17 @@ export function getSiteUrl(): string {
     return window.location.origin.replace(/\/$/, "");
   }
 
-  // 3. Fallback to production domain
+  // 3. Vercel deployment production URL
+  if (process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL.replace(/\/$/, "")}`;
+  }
+
+  // 4. Local development server-side fallback
+  if (process.env.NODE_ENV === "development") {
+    return "http://localhost:3000";
+  }
+
+  // 5. Production domain
   return "https://ecoguardmabini.co";
 }
 
