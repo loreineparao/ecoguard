@@ -128,6 +128,29 @@ const FAQ_LIST: FAQItem[] = [
       "If you are signed in, you can update your password directly in Account Settings (/settings) under 'Password & Security'. If you forgot your password, go to the Sign In page (/login), click 'Forgot password?', enter your registered email, and follow the password reset link sent to your inbox.",
   },
   {
+    id: "how-to-deactivate-account",
+    category: "Account & Security",
+    question: "How can residents deactivate their EcoGuard account?",
+    answer: (
+      <div>
+        <p style={{ margin: "0 0 8px" }}>
+          Residents who wish to discontinue using the EcoGuard portal can deactivate their account at any time:
+        </p>
+        <ol style={{ paddingLeft: "20px", margin: "0 0 8px", lineHeight: 1.6 }}>
+          <li>Navigate to <strong>Account Settings</strong> (<code>/settings</code>) and locate the <strong>Deactivate Account</strong> section.</li>
+          <li>Click <strong>Deactivate Account</strong> to open the confirmation dialog.</li>
+          <li>Review the deactivation terms, optionally state your reason for leaving, enter your current password, and confirm.</li>
+        </ol>
+        <p style={{ margin: "0 0 8px", lineHeight: 1.6 }}>
+          Upon confirmation, your portal access and active login sessions are immediately disabled.
+        </p>
+        <p style={{ margin: 0, fontSize: "12.5px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+          <strong>Note on Municipal Records:</strong> Under Philippine environmental laws (RA 9003 and PD 705), submitted complaint logs, inspection records, and permit applications constitute official government transactions and are preserved for municipal audit and operational continuity. For formal personal data erasure requests under Republic Act No. 10173 (Data Privacy Act of 2012), please contact the MENR Office in person.
+        </p>
+      </div>
+    ),
+  },
+  {
     id: "how-to-contact-menr",
     category: "General",
     question: "How can residents contact the MENR Office?",

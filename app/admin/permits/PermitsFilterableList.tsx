@@ -17,7 +17,7 @@ import {
 
 type PermitApplication = {
   id: string;
-  user_id: string;
+  user_id: string | null;
   applicant_name: string;
   documentary_requirements: unknown;
   application_status: string;
@@ -493,7 +493,7 @@ export default function PermitsFilterableList({
                           Applicant User ID
                         </span>
                         <span className="admin-permit-info-value" style={{ fontFamily: "monospace", color: "var(--text-secondary)" }}>
-                          {application.user_id}
+                          {application.user_id || "Unlinked (Account Deleted)"}
                         </span>
                       </div>
 

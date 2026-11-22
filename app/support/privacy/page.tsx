@@ -117,14 +117,15 @@ export default function PrivacyPolicyPage() {
 
         {/* Section 8 */}
         <section className="policy-section">
-          <h2>8. Account Deletion and Records Retention</h2>
+          <h2>8. Account Deactivation and Records Retention</h2>
           <p>
-            Residents have the right to request the permanent deletion of their EcoGuard account at any time via Account Settings. Upon confirming account deletion:
+            Residents have the right to request the deactivation of their EcoGuard account at any time via Account Settings. Upon confirming account deactivation:
           </p>
           <ul>
-            <li>Authentication credentials and active login sessions are permanently terminated and deleted from the authentication directory.</li>
-            <li>Personal contact numbers, residential addresses, and avatar images are permanently scrubbed and removed from active profiles.</li>
-            <li>In accordance with public records regulations and environmental governance mandates (RA 9003 and PD 705), official complaints, inspection records, and permit applications submitted to the MENR Office are disassociated from personal identities and retained for municipal audit, legal, and operational continuity.</li>
+            <li>Resident Portal access is disabled, and all active authentication sessions and refresh tokens are immediately revoked.</li>
+            <li>The account is restricted from signing in, submitting new complaints, or filing permit applications.</li>
+            <li>In accordance with public records regulations and environmental governance mandates (RA 9003 and PD 705), official complaints, inspection records, and permit applications submitted to the MENR Office are preserved for municipal audit, legal compliance, and operational continuity.</li>
+            <li>Residents seeking formal data erasure or anonymization under Chapter IV of the Philippine Data Privacy Act of 2012 (RA 10173) may contact the MENR Office in person with valid government-issued identification to submit a formal Data Subject Request.</li>
           </ul>
         </section>
 
@@ -136,7 +137,7 @@ export default function PrivacyPolicyPage() {
             <li><strong>Right to be Informed:</strong> To know what personal data is being collected and how it will be processed.</li>
             <li><strong>Right to Access:</strong> To view all personal profile data, complaints, and permits submitted through the portal.</li>
             <li><strong>Right to Rectification:</strong> To update inaccurate, outdated, or incomplete profile details via the Edit Profile section.</li>
-            <li><strong>Right to Object &amp; Erasure:</strong> To request account deactivation and anonymization subject to statutory record-retention laws.</li>
+            <li><strong>Right to Object &amp; Erasure:</strong> To request account deactivation and formal data erasure subject to statutory record-retention laws.</li>
           </ul>
         </section>
 

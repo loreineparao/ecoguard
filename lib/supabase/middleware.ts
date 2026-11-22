@@ -70,11 +70,17 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // 3. Prevent deleted accounts or stale sessions from accessing protected portal
-    if (user.user_metadata?.account_status === "deleted") {
+    // 3. Prevent deactivated accounts or stale sessions from accessing protected portal
+    const isBanned = Boolean(user.banned_until && new Date(user.banned_until) > new Date());
+    const isAppDeactivated = user.app_metadata?.account_status === "deactivated";
+    const isUserDeactivated =
+      user.user_metadata?.account_status === "deactivated" ||
+      user.user_metadata?.account_status === "deleted";
+
+    if (isBanned || isAppDeactivated || isUserDeactivated) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
-      url.searchParams.set("error", "Your account has been deleted and access is no longer permitted.");
+      url.searchParams.set("error", "Your EcoGuard account has been deactivated. Please visit the MENR Office for further assistance.");
       const response = NextResponse.redirect(url);
       request.cookies.getAll().forEach((c) => {
         if (c.name.includes("sb-") || c.name.includes("auth")) {
@@ -90,10 +96,10 @@ export async function updateSession(request: NextRequest) {
       .eq("id", user.id)
       .maybeSingle();
 
-    if (!profile || profile.deletion_status === "deleted") {
+    if (!profile || profile.deletion_status === "deactivated" || profile.deletion_status === "deleted") {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
-      url.searchParams.set("error", "Your account has been deleted and access is no longer permitted.");
+      url.searchParams.set("error", "Your EcoGuard account has been deactivated. Please visit the MENR Office for further assistance.");
       const response = NextResponse.redirect(url);
       request.cookies.getAll().forEach((c) => {
         if (c.name.includes("sb-") || c.name.includes("auth")) {

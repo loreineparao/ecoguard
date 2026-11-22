@@ -188,8 +188,14 @@ function LoginForm() {
     if (error) {
       const errMsg = error.message.toLowerCase();
 
-      // Check if unconfirmed email
-      if (errMsg.includes("email not confirmed")) {
+      // Check if user is banned/deactivated
+      if (errMsg.includes("banned") || errMsg.includes("disabled")) {
+        setMessage("Your EcoGuard account has been deactivated. Please visit the MENR Office for further assistance.");
+        setMessageType("error");
+        setCanResend(false);
+        setPasswordError("");
+        setEmailError("");
+      } else if (errMsg.includes("email not confirmed")) {
         setMessage("Your email address has not been confirmed yet. Please verify your email or click below to resend the confirmation link.");
         setMessageType("error");
         setCanResend(true);
@@ -214,9 +220,15 @@ function LoginForm() {
     }
 
     if (data.user) {
-      if (data.user.user_metadata?.account_status === "deleted") {
+      const isBanned = Boolean(data.user.banned_until && new Date(data.user.banned_until) > new Date());
+      const isAppDeactivated = data.user.app_metadata?.account_status === "deactivated";
+      const isUserDeactivated =
+        data.user.user_metadata?.account_status === "deactivated" ||
+        data.user.user_metadata?.account_status === "deleted";
+
+      if (isBanned || isAppDeactivated || isUserDeactivated) {
         await supabase.auth.signOut({ scope: "global" });
-        setMessage("This account has been permanently deleted and can no longer be accessed.");
+        setMessage("Your EcoGuard account has been deactivated. Please visit the MENR Office for further assistance.");
         setMessageType("error");
         setLoading(false);
         return;
@@ -228,9 +240,9 @@ function LoginForm() {
         .eq("id", data.user.id)
         .maybeSingle();
 
-      if (!profile || profile.deletion_status === "deleted") {
+      if (!profile || profile.deletion_status === "deactivated" || profile.deletion_status === "deleted") {
         await supabase.auth.signOut({ scope: "global" });
-        setMessage("This account has been permanently deleted and can no longer be accessed.");
+        setMessage("Your EcoGuard account has been deactivated. Please visit the MENR Office for further assistance.");
         setMessageType("error");
         setLoading(false);
         return;

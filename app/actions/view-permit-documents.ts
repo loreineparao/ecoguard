@@ -41,10 +41,10 @@ export async function getPermitDocuments(
     };
   }
 
-  // Check user's role
+  // Check user's role and account status
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, deletion_status")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -59,6 +59,17 @@ export async function getPermitDocuments(
     return {
       success: false,
       error: "User profile not found.",
+    };
+  }
+
+  if (
+    profile.deletion_status === "deactivated" ||
+    profile.deletion_status === "deleted" ||
+    user.app_metadata?.account_status === "deactivated"
+  ) {
+    return {
+      success: false,
+      error: "Your account has been deactivated. Access to permit documents is restricted.",
     };
   }
 
@@ -101,13 +112,13 @@ export async function getPermitDocuments(
     };
   }
 
-  // Create secure temporary URLs for the private files (valid for 1 hour)
+  // Create secure temporary URLs for the private files (valid for 15 minutes)
   const documentsWithUrls = await Promise.all(
     (documents || []).map(async (document) => {
       const { data: signedUrlData, error: signedUrlError } =
         await supabase.storage
           .from("permit-documents")
-          .createSignedUrl(document.file_path, 60 * 60);
+          .createSignedUrl(document.file_path, 60 * 15);
 
       if (signedUrlError) {
         return {

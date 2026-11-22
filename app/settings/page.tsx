@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import AppShell from "@/components/app-shell";
 import AccountInformationSection from "./AccountInformationSection";
 import PasswordSettingsForm from "./PasswordSettingsForm";
-import DeleteAccountSection from "./DeleteAccountSection";
+import DeactivateAccountSection from "./DeactivateAccountSection";
 import AppearanceSettingsSection from "./AppearanceSettingsSection";
 import { ArrowLeft, HelpCircle } from "lucide-react";
 import Link from "next/link";
@@ -36,9 +36,16 @@ export default async function SettingsPage() {
     .eq("id", user.id)
     .maybeSingle();
 
-  // If the profile is marked deleted or missing, reject access immediately
-  if (!profile || profile.deletion_status === "deleted" || user.user_metadata?.account_status === "deleted") {
-    redirect("/login?error=" + encodeURIComponent("Your account has been deleted and access is no longer permitted."));
+  // If the profile is marked deactivated or missing, reject access immediately
+  const isDeactivated =
+    !profile ||
+    profile.deletion_status === "deactivated" ||
+    profile.deletion_status === "deleted" ||
+    user.app_metadata?.account_status === "deactivated" ||
+    user.user_metadata?.account_status === "deactivated";
+
+  if (isDeactivated) {
+    redirect("/login?error=" + encodeURIComponent("Your account has been deactivated. Please contact the MENR Office."));
   }
 
   const role = profile?.role === "admin" ? "Administrator" : "Resident";
@@ -75,7 +82,7 @@ export default async function SettingsPage() {
         </div>
 
         <div className="settings-grid">
-          {/* Main Left Column (Exact order: 1. Account Info, 2. Password & Security, 3. Delete Account) */}
+          {/* Main Left Column (Exact order: 1. Account Info, 2. Password & Security, 3. Deactivate Account) */}
           <div className="settings-main-col">
             {/* 1. Account Information */}
             <section className="card settings-card" id="account-info">
@@ -92,9 +99,9 @@ export default async function SettingsPage() {
               <PasswordSettingsForm userEmail={email} />
             </section>
 
-            {/* 3. Delete Account */}
-            <section className="card settings-card" id="delete-account">
-              <DeleteAccountSection
+            {/* 3. Deactivate Account */}
+            <section className="card settings-card" id="deactivate-account">
+              <DeactivateAccountSection
                 userRole={role}
                 userEmail={email}
               />

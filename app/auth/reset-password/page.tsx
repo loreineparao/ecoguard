@@ -41,9 +41,21 @@ function ResetPasswordForm() {
   useEffect(() => {
     const supabase = createClient();
 
-    // 1. Check existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
+    // 1. Check existing session and verify account is not deactivated
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        const isBanned = Boolean(user.banned_until && new Date(user.banned_until) > new Date());
+        const isDeactivated = user.app_metadata?.account_status === "deactivated";
+
+        if (isBanned || isDeactivated) {
+          setMessage("Your EcoGuard account has been deactivated. Please visit the MENR Office for further assistance.");
+          setMessageType("error");
+          setHasValidSession(false);
+          setCheckingSession(false);
+          supabase.auth.signOut();
+          return;
+        }
+
         setHasValidSession(true);
       }
       setCheckingSession(false);
@@ -52,8 +64,21 @@ function ResetPasswordForm() {
     // 2. Listen to Supabase auth state change for PASSWORD_RECOVERY event
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === "PASSWORD_RECOVERY" || session) {
+        if (session?.user) {
+          const isBanned = Boolean(session.user.banned_until && new Date(session.user.banned_until) > new Date());
+          const isDeactivated = session.user.app_metadata?.account_status === "deactivated";
+
+          if (isBanned || isDeactivated) {
+            setMessage("Your EcoGuard account has been deactivated. Please visit the MENR Office for further assistance.");
+            setMessageType("error");
+            setHasValidSession(false);
+            setCheckingSession(false);
+            await supabase.auth.signOut();
+            return;
+          }
+        }
         setHasValidSession(true);
         setCheckingSession(false);
       }
@@ -89,6 +114,24 @@ function ResetPasswordForm() {
 
     try {
       const supabase = createClient();
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      const isBanned = Boolean(user?.banned_until && new Date(user.banned_until) > new Date());
+      const isDeactivated = user?.app_metadata?.account_status === "deactivated";
+
+      if (!user || isBanned || isDeactivated) {
+        setMessage(
+          "Your EcoGuard account has been deactivated. Please visit the MENR Office for further assistance."
+        );
+        setMessageType("error");
+        setLoading(false);
+        await supabase.auth.signOut();
+        return;
+      }
+
       const { error } = await supabase.auth.updateUser({
         password: newPassword,
       });

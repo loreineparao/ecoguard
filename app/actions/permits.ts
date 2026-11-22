@@ -13,10 +13,10 @@ export async function submitPermitApplication(
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
+  if (!user || user.app_metadata?.account_status === "deactivated" || user.user_metadata?.account_status === "deactivated") {
     return {
       success: false,
-      error: "You must be logged in to submit a permit application.",
+      error: "You must be logged in with an active account to submit a permit application.",
     };
   }
 

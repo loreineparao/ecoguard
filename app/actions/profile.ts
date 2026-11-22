@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { validatePhoneNumber } from "@/lib/validators";
 
 export type ProfileUpdateData = {
@@ -49,8 +50,13 @@ export async function updateUserProfileDetails(data: ProfileUpdateData) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user || user.user_metadata?.account_status === "deleted") {
-    return { success: false, error: "This account has been deleted and cannot be updated." };
+  if (
+    !user ||
+    user.app_metadata?.account_status === "deactivated" ||
+    user.user_metadata?.account_status === "deactivated" ||
+    user.user_metadata?.account_status === "deleted"
+  ) {
+    return { success: false, error: "This account has been deactivated and cannot be updated." };
   }
 
   // 1. Synchronize user_metadata in Supabase Auth first
@@ -81,7 +87,7 @@ export async function updateUserProfileDetails(data: ProfileUpdateData) {
   // Check if profile record exists in public.profiles
   const { data: existingProfile, error: checkError } = await supabase
     .from("profiles")
-    .select("id")
+    .select("id, deletion_status")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -89,8 +95,12 @@ export async function updateUserProfileDetails(data: ProfileUpdateData) {
     console.warn("Could not check existing profile record:", checkError.message);
   }
 
+  if (existingProfile?.deletion_status === "deactivated" || existingProfile?.deletion_status === "deleted") {
+    return { success: false, error: "This account has been deactivated and cannot be updated." };
+  }
+
   if (!existingProfile) {
-    // Record does not exist: insert a new row
+    // Record does not exist: insert a new row with hardcoded role = 'resident'
     const insertPayload: Record<string, unknown> = {
       id: user.id,
       email: user.email || "",
@@ -102,19 +112,25 @@ export async function updateUserProfileDetails(data: ProfileUpdateData) {
     if (cleanContact) insertPayload.contact_number = cleanContact;
     insertPayload.updated_at = new Date().toISOString();
 
-    const { error: insertErr } = await supabase.from("profiles").insert(insertPayload);
+    const admin = createAdminClient();
+    const dbClient = admin || supabase;
+    const { error: insertErr } = await dbClient.from("profiles").insert(insertPayload);
     if (insertErr) {
       console.warn("Full profile insert failed, trying minimal insert:", insertErr.message);
-      const { error: minInsertErr } = await supabase.from("profiles").insert({
+      const { error: minInsertErr } = await dbClient.from("profiles").insert({
         id: user.id,
         email: user.email || "",
         full_name: trimmedName,
+        role: "resident",
       });
       dbError = minInsertErr;
     }
   } else {
-    // Record exists: update the row
-    const { error: fullUpdateError } = await supabase
+    // Record exists: update the row using admin client if available (service role) to persist changes
+    // while enforcing that only approved non-sensitive profile columns are modified.
+    const admin = createAdminClient();
+    const dbClient = admin || supabase;
+    const { error: fullUpdateError } = await dbClient
       .from("profiles")
       .update(profilePayload)
       .eq("id", user.id);
@@ -122,9 +138,9 @@ export async function updateUserProfileDetails(data: ProfileUpdateData) {
     // If extended columns are missing, fall back to full_name only
     if (fullUpdateError) {
       console.warn("Full profile update fell back to minimal update:", fullUpdateError.message);
-      const { error: fallbackError } = await supabase
+      const { error: fallbackError } = await dbClient
         .from("profiles")
-        .update({ full_name: trimmedName })
+        .update({ full_name: trimmedName, updated_at: profilePayload.updated_at })
         .eq("id", user.id);
       dbError = fallbackError;
     }
@@ -359,6 +375,16 @@ export async function cancelAccountDeletionRequest() {
     return { success: false, error: "Authentication required to cancel deletion request." };
   }
 
+  const { data: currentProfile } = await supabase
+    .from("profiles")
+    .select("deletion_status")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (currentProfile?.deletion_status === "deactivated") {
+    return { success: false, error: "Deactivated accounts cannot be reactivated." };
+  }
+
   try {
     await supabase
       .from("account_deletion_requests")
@@ -376,7 +402,8 @@ export async function cancelAccountDeletionRequest() {
         deletion_requested_at: null,
         deletion_status: null,
       })
-      .eq("id", user.id);
+      .eq("id", user.id)
+      .eq("deletion_status", "pending");
   } catch (err) {
     console.warn("Could not clear profiles deletion status:", err);
   }

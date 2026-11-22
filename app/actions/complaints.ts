@@ -15,11 +15,11 @@ export async function createComplaint(
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Make sure the user is logged in
-  if (!user) {
+  // Make sure the user is logged in and active
+  if (!user || user.app_metadata?.account_status === "deactivated" || user.user_metadata?.account_status === "deactivated") {
     return {
       success: false,
-      error: "You must be logged in to create a complaint.",
+      error: "You must be logged in with an active account to create a complaint.",
     };
   }
 

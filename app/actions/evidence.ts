@@ -139,6 +139,25 @@ export async function getMyComplaintEvidence(complaintId: string) {
     };
   }
 
+  // Verify that account is not deactivated
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("deletion_status")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (
+    profile?.deletion_status === "deactivated" ||
+    profile?.deletion_status === "deleted" ||
+    user.app_metadata?.account_status === "deactivated"
+  ) {
+    return {
+      success: false,
+      error: "Your account has been deactivated. Access to complaint evidence is restricted.",
+      evidence: [],
+    };
+  }
+
   // Verify that this complaint belongs to the logged-in resident.
   const { data: complaint, error: complaintError } = await supabase
     .from("complaints")

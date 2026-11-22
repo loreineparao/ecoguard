@@ -18,7 +18,7 @@ import {
 
 type ComplaintItem = {
   id: string;
-  user_id: string;
+  user_id: string | null;
   category: string;
   description: string;
   status: string;
@@ -599,7 +599,7 @@ export default function ComplaintsFilterableList({
                           Resident Account ID
                         </span>
                         <span style={{ color: "var(--text-secondary)", fontFamily: "monospace", fontSize: "12px" }}>
-                          {complaint.user_id}
+                          {complaint.user_id || "Unlinked (Account Deleted)"}
                         </span>
                       </div>
 
