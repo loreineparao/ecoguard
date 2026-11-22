@@ -86,14 +86,14 @@ export default function AboutPage() {
         </h2>
 
         <div className="about-modules-grid">
-          {/* Module 1: Complaint Management */}
+          {/* Module 1: Complaint Management (Illegal Dumping Only) */}
           <div className="card about-module-card">
             <div className="about-module-icon">
               <MessageSquare size={22} aria-hidden="true" />
             </div>
             <h3>Environmental Complaint Reporting</h3>
             <p>
-              Allows residents to quickly submit reports on illegal dumping and solid waste violations. Requires photographic evidence and GPS coordinates to facilitate pinpoint municipal dispatching.
+              Allows residents to report illegal dumping incidents with photographic evidence and geotagged incident locations. Residents can track complaint investigation status as MENR field officers verify and address the violation.
             </p>
           </div>
 
@@ -102,9 +102,9 @@ export default function AboutPage() {
             <div className="about-module-icon">
               <TreePine size={22} aria-hidden="true" />
             </div>
-            <h3>Tree-Cutting Permit Management</h3>
+            <h3>Tree-Cutting Permit Applications</h3>
             <p>
-              Digitalizes forestry compliance by guiding residents through the submission of all 5 DENR and municipal statutory documents, reducing in-person trips to the Municipal Hall.
+              Enables residents to submit tree-cutting permit applications and upload required supporting documents (such as land titles and barangay clearances) for formal administrative review and scheduling of physical site inspection by MENR personnel.
             </p>
           </div>
 
@@ -113,9 +113,9 @@ export default function AboutPage() {
             <div className="about-module-icon">
               <Truck size={22} aria-hidden="true" />
             </div>
-            <h3>Solid Waste Collection Schedules</h3>
+            <h3>Garbage Collection Schedules</h3>
             <p>
-              Publishes clear barangay-by-barangay garbage truck collection windows, driver assignments, and trip tickets to ensure timely community waste management.
+              Allows residents to view official solid waste collection days, routes, and designated pickup windows published and updated by the MENR Office across all 34 Mabini barangays.
             </p>
           </div>
 
@@ -124,9 +124,9 @@ export default function AboutPage() {
             <div className="about-module-icon">
               <Bot size={22} aria-hidden="true" />
             </div>
-            <h3>Bilingual AI Guidance Assistant</h3>
+            <h3>Google Gemini AI Assistant</h3>
             <p>
-              Powered by Google Gemini to assist residents in English and Tagalog with municipal guidelines, permit requirement checklists, and status tracking.
+              An AI-powered service guidance tool that helps residents understand municipal environmental guidelines, clarify required permit documents, and navigate directly to the appropriate complaint or application forms.
             </p>
           </div>
         </div>

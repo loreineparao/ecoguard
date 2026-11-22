@@ -2,7 +2,6 @@ import Link from "next/link";
 import Image from "next/image";
 import {
   ArrowLeft,
-  ArrowRight,
   ShieldCheck,
   TreePine,
   MessageSquare,
@@ -10,36 +9,49 @@ import {
   Bot,
   MapPin,
   Clock,
-  Mail,
   Building2,
   CheckCircle2,
 } from "lucide-react";
-import ThemeToggle from "@/components/theme-toggle";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata = {
   title: "About EcoGuard | MENR Office Mabini, Batangas",
   description:
-    "Learn about EcoGuard: An AI-Enabled Environmental Complaint and Service Management System for the MENR Office in Mabini, Batangas.",
+    "Learn about EcoGuard: An AI-Enabled Environmental Complaint and Service Management System developed for the MENR Office in Mabini, Batangas.",
 };
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let dashboardUrl = "/dashboard";
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profile?.role === "admin") {
+      dashboardUrl = "/admin";
+    }
+  }
+
   return (
     <div className="about-public-page">
-      {/* Public Top Navigation */}
-      <header className="about-public-nav" aria-label="Public navigation">
+      {/* Top Navigation */}
+      <header className="about-public-nav" aria-label="About page navigation">
         <div className="about-nav-container">
-          <Link href="/" className="landing-brand-clean" aria-label="EcoGuard Home">
+          <Link href={dashboardUrl} className="landing-brand-clean" aria-label="EcoGuard Home">
             <span className="landing-brand-title">EcoGuard</span>
             <span className="landing-brand-sub">MABINI, BATANGAS</span>
           </Link>
           <div className="about-nav-actions">
-            <Link href="/" className="about-nav-link">
-              <ArrowLeft size={15} aria-hidden="true" />
-              <span>Home</span>
-            </Link>
-            <ThemeToggle />
-            <Link href="/login" className="button green sm">
-              Sign in <ArrowRight size={14} aria-hidden="true" />
+            <Link href={dashboardUrl} className="about-nav-link" aria-label="Back to Dashboard">
+              <ArrowLeft size={16} aria-hidden="true" />
+              <span>Back to Dashboard</span>
             </Link>
           </div>
         </div>
@@ -58,14 +70,6 @@ export default function AboutPage() {
             An AI-Enabled Web-Based Environmental Complaint and Service Management System developed for the
             Municipal Environment and Natural Resources Office (MENR) of Mabini, Batangas.
           </p>
-          <div className="about-hero-actions">
-            <Link href="/login" className="button green">
-              Open Resident Portal <ArrowRight size={16} aria-hidden="true" />
-            </Link>
-            <Link href="/support/faq" className="button secondary">
-              Read FAQs &amp; Help
-            </Link>
-          </div>
         </section>
 
         {/* LGU & System Mission Section */}
@@ -115,18 +119,18 @@ export default function AboutPage() {
           </div>
 
           <div className="about-modules-grid">
-            {/* Capability 1: Complaints */}
+            {/* Capability 1: Complaints (Illegal Dumping Only) */}
             <div className="card about-module-card">
               <div className="about-module-icon green">
                 <MessageSquare size={22} aria-hidden="true" />
               </div>
               <h3>Environmental Complaint Reporting</h3>
               <p>
-                Residents can report illegal dumping, open burning, and uncollected waste. Supports photo evidence uploads and GPS location tagging to guide MENR field inspectors directly to the site.
+                Allows residents to report illegal dumping incidents with photographic evidence and geotagged incident locations. Residents can track complaint investigation status as MENR field officers verify and address the violation.
               </p>
               <div className="about-module-tag">
                 <CheckCircle2 size={13} aria-hidden="true" />
-                <span>Geotagged &amp; Timestamped</span>
+                <span>Photo Evidence &amp; Status Tracking</span>
               </div>
             </div>
 
@@ -135,13 +139,13 @@ export default function AboutPage() {
               <div className="about-module-icon emerald">
                 <TreePine size={22} aria-hidden="true" />
               </div>
-              <h3>Tree Cutting Permit Applications</h3>
+              <h3>Tree-Cutting Permit Applications</h3>
               <p>
-                Complies with Presidential Decree 705 (Revised Forestry Code). Residents submit digital permit requests with required land titles, barangay clearances, and tree species details for MENR review.
+                Enables residents to submit tree-cutting permit applications and upload required supporting documents (such as land titles and barangay clearances) for formal administrative review and scheduling of physical site inspection by MENR personnel.
               </p>
               <div className="about-module-tag">
                 <CheckCircle2 size={13} aria-hidden="true" />
-                <span>PD 705 Compliant</span>
+                <span>Document Submission &amp; MENR Review</span>
               </div>
             </div>
 
@@ -152,11 +156,11 @@ export default function AboutPage() {
               </div>
               <h3>Garbage Collection Schedules</h3>
               <p>
-                Real-time schedules and collection route notices for all 34 Mabini barangays. Ensures households and businesses know exact pickup days to avoid roadside waste buildup.
+                Allows residents to view official solid waste collection days, routes, and designated pickup windows published and updated by the MENR Office across all 34 Mabini barangays.
               </p>
               <div className="about-module-tag">
                 <CheckCircle2 size={13} aria-hidden="true" />
-                <span>34 Mabini Barangays</span>
+                <span>Published MENR Schedules</span>
               </div>
             </div>
 
@@ -167,17 +171,17 @@ export default function AboutPage() {
               </div>
               <h3>Google Gemini AI Assistant</h3>
               <p>
-                24/7 bilingual chatbot assistant (Tagalog &amp; English) that guides residents on waste segregation rules, permit documentation, collection schedules, and filing procedures.
+                An AI-powered service guidance tool that helps residents understand municipal environmental guidelines, clarify required permit documents, and navigate directly to the appropriate complaint or application forms.
               </p>
               <div className="about-module-tag">
                 <CheckCircle2 size={13} aria-hidden="true" />
-                <span>Bilingual AI Guidance</span>
+                <span>Bilingual Service Guidance</span>
               </div>
             </div>
           </div>
         </section>
 
-        {/* MENR Office Contact & Hours */}
+        {/* MENR Office Contact & Hours (3 Equally Spaced Columns) */}
         <section className="card about-office-card">
           <div className="section-heading-compact">
             <span className="eyebrow">OFFICE DIRECTORY</span>
@@ -185,6 +189,7 @@ export default function AboutPage() {
           </div>
 
           <div className="about-contact-grid">
+            {/* Column 1: Office Location */}
             <div className="about-contact-item">
               <div className="about-contact-icon">
                 <Building2 size={20} aria-hidden="true" />
@@ -195,26 +200,21 @@ export default function AboutPage() {
               </div>
             </div>
 
+            {/* Column 2: Operating Hours */}
             <div className="about-contact-item">
               <div className="about-contact-icon">
                 <Clock size={20} aria-hidden="true" />
               </div>
               <div>
                 <strong>Operating Hours</strong>
-                <p>Monday to Friday: 8:00 AM – 5:00 PM (Except official holidays)</p>
+                <p>
+                  Monday–Thursday<br />
+                  8:00 AM – 6:00 PM
+                </p>
               </div>
             </div>
 
-            <div className="about-contact-item">
-              <div className="about-contact-icon">
-                <Mail size={20} aria-hidden="true" />
-              </div>
-              <div>
-                <strong>Official Email</strong>
-                <p>menr@mabini.gov.ph</p>
-              </div>
-            </div>
-
+            {/* Column 3: Jurisdiction */}
             <div className="about-contact-item">
               <div className="about-contact-icon">
                 <MapPin size={20} aria-hidden="true" />
@@ -227,21 +227,13 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* CTA Banner */}
+        {/* Environmental Awareness Section */}
         <section className="about-cta-card">
           <div className="about-cta-content">
             <h2>Ready to help protect our municipality?</h2>
             <p>
-              Register or sign in to your EcoGuard Resident Account to report waste violations, apply for tree cutting permits, or check your barangay collection schedule.
+              Community vigilance and active resident cooperation are essential to preserving Mabini&apos;s marine sanctuaries and ecological wealth. By reporting illegal dumping, adhering to published waste collection schedules, and complying with environmental regulations, every resident contributes to a cleaner, greener municipality.
             </p>
-            <div className="about-cta-buttons">
-              <Link href="/login" className="button green">
-                Sign In to Resident Portal <ArrowRight size={16} aria-hidden="true" />
-              </Link>
-              <Link href="/login" className="button secondary">
-                Create an Account
-              </Link>
-            </div>
           </div>
         </section>
       </main>
@@ -253,7 +245,7 @@ export default function AboutPage() {
             EcoGuard · Environmental Management System · MENR Office, Municipality of Mabini, Batangas
           </p>
           <div className="about-footer-links">
-            <Link href="/">Home</Link>
+            <Link href={dashboardUrl}>Dashboard</Link>
             <span>•</span>
             <Link href="/about">About</Link>
             <span>•</span>

@@ -57,7 +57,7 @@ export default function SupportHubPage() {
         </Link>
 
         {/* Card 3: About EcoGuard */}
-        <Link href="/support/about" className="support-nav-card">
+        <Link href="/about" className="support-nav-card">
           <div className="support-nav-icon">
             <Info size={24} aria-hidden="true" />
           </div>
@@ -76,23 +76,26 @@ export default function SupportHubPage() {
           Contact the MENR Office
         </h2>
         <p style={{ color: "var(--text-secondary)", fontSize: "13.5px", margin: "0 0 16px", lineHeight: 1.5 }}>
-          If you have an urgent inquiry, need in-person document validation, or require assistance beyond digital self-service, please visit or contact the office directly:
+          If you have an urgent inquiry, need in-person document validation, or require assistance beyond digital self-service, please visit the office during regular operating hours:
         </p>
 
-        <div className="support-contact-grid">
+        <div className="support-contact-grid two-col">
           <div>
-            <strong style={{ display: "block", color: "var(--text-main)", fontSize: "12.5px" }}>Office Location</strong>
-            <span style={{ color: "var(--text-secondary)", fontSize: "13px" }}>{MENR_OFFICE_INFO.address}</span>
+            <strong style={{ display: "block", color: "var(--text-main)", fontSize: "13px", marginBottom: "4px" }}>
+              Office Location
+            </strong>
+            <span style={{ color: "var(--text-secondary)", fontSize: "13px", lineHeight: 1.5 }}>
+              {MENR_OFFICE_INFO.address}
+            </span>
           </div>
 
           <div>
-            <strong style={{ display: "block", color: "var(--text-main)", fontSize: "12.5px" }}>Office Hours</strong>
-            <span style={{ color: "var(--text-secondary)", fontSize: "13px" }}>{MENR_OFFICE_INFO.hours}</span>
-          </div>
-
-          <div>
-            <strong style={{ display: "block", color: "var(--text-main)", fontSize: "12.5px" }}>Official Inquiries</strong>
-            <span style={{ color: "var(--text-secondary)", fontSize: "13px" }}>{MENR_OFFICE_INFO.email}</span>
+            <strong style={{ display: "block", color: "var(--text-main)", fontSize: "13px", marginBottom: "4px" }}>
+              Office Hours
+            </strong>
+            <span style={{ color: "var(--text-secondary)", fontSize: "13px", lineHeight: 1.5 }}>
+              {MENR_OFFICE_INFO.hours}
+            </span>
           </div>
         </div>
 

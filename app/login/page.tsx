@@ -47,14 +47,20 @@ function LoginForm() {
         ? "Your verification link has expired. Please request a new confirmation email."
         : messageParam === "password_reset_success"
           ? "Your password has been successfully updated! You can now sign in with your new password."
-          : noticeParam === "account_deactivated"
-            ? "Your EcoGuard resident account has been successfully deactivated."
-            : errorParam
-              ? decodeURIComponent(errorParam)
-              : "";
+          : noticeParam === "account_deleted"
+            ? "Your EcoGuard account has been permanently deleted. Your authentication session has been closed."
+            : noticeParam === "account_deactivated"
+              ? "Your EcoGuard resident account has been successfully deactivated."
+              : errorParam
+                ? decodeURIComponent(errorParam)
+                : "";
 
   const defaultMessageType =
-    isVerifiedSuccess || isAlreadyVerified || messageParam === "password_reset_success" || noticeParam === "account_deactivated"
+    isVerifiedSuccess ||
+    isAlreadyVerified ||
+    messageParam === "password_reset_success" ||
+    noticeParam === "account_deactivated" ||
+    noticeParam === "account_deleted"
       ? "success"
       : isExpired || errorParam
         ? "error"
@@ -208,13 +214,29 @@ function LoginForm() {
     }
 
     if (data.user) {
+      if (data.user.user_metadata?.account_status === "deleted") {
+        await supabase.auth.signOut({ scope: "global" });
+        setMessage("This account has been permanently deleted and can no longer be accessed.");
+        setMessageType("error");
+        setLoading(false);
+        return;
+      }
+
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, deletion_status")
         .eq("id", data.user.id)
         .maybeSingle();
 
-      if (profile?.role === "admin") {
+      if (!profile || profile.deletion_status === "deleted") {
+        await supabase.auth.signOut({ scope: "global" });
+        setMessage("This account has been permanently deleted and can no longer be accessed.");
+        setMessageType("error");
+        setLoading(false);
+        return;
+      }
+
+      if (profile.role === "admin") {
         router.push("/admin");
         router.refresh();
         return;

@@ -31,14 +31,14 @@ export default function PrivacyPolicyPage() {
       </div>
 
       {/* Prominent Draft Notice */}
-      <div className="notice warning" style={{ margin: "20px 0 28px", padding: "16px 18px", borderLeft: "4px solid #D97706" }}>
-        <div style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}>
-          <AlertTriangle size={22} style={{ color: "#D97706", flexShrink: 0, marginTop: "2px" }} />
+      <div className="policy-draft-notice" role="note" aria-label="Draft Policy Notice">
+        <div className="policy-draft-notice-header">
+          <AlertTriangle size={22} className="policy-draft-notice-icon" aria-hidden="true" />
           <div>
-            <strong style={{ display: "block", color: "#92400E", fontSize: "14px", marginBottom: "4px" }}>
+            <strong className="policy-draft-notice-title">
               DRAFT POLICY NOTICE — FOR MENR &amp; LGU REVIEW
             </strong>
-            <p style={{ margin: 0, color: "#78350F", fontSize: "13px", lineHeight: 1.5 }}>
+            <p className="policy-draft-notice-text">
               This document is a comprehensive draft prepared in accordance with the <strong>Philippine Data Privacy Act of 2012 (Republic Act No. 10173)</strong> for the EcoGuard capstone project. It is intended for formal review, amendment, and official adoption by the <strong>Municipal Environment and Natural Resources Office (MENR)</strong> and the <strong>Municipal Government of Mabini, Batangas</strong>. Nothing herein constitutes final municipal ordinance or legal counsel until officially enacted.
             </p>
           </div>
@@ -117,14 +117,14 @@ export default function PrivacyPolicyPage() {
 
         {/* Section 8 */}
         <section className="policy-section">
-          <h2>8. Account Deactivation and Anonymization</h2>
+          <h2>8. Account Deletion and Records Retention</h2>
           <p>
-            Residents have the right to request the deactivation of their EcoGuard account at any time via Account Settings. Upon confirming account deactivation:
+            Residents have the right to request the permanent deletion of their EcoGuard account at any time via Account Settings. Upon confirming account deletion:
           </p>
           <ul>
-            <li>Active authentication credentials and login sessions are terminated immediately.</li>
-            <li>Personal contact numbers, street addresses, and avatar images are anonymized or removed from the active profile.</li>
-            <li>Public municipal records previously generated remain associated with an anonymized reference for audit integrity.</li>
+            <li>Authentication credentials and active login sessions are permanently terminated and deleted from the authentication directory.</li>
+            <li>Personal contact numbers, residential addresses, and avatar images are permanently scrubbed and removed from active profiles.</li>
+            <li>In accordance with public records regulations and environmental governance mandates (RA 9003 and PD 705), official complaints, inspection records, and permit applications submitted to the MENR Office are disassociated from personal identities and retained for municipal audit, legal, and operational continuity.</li>
           </ul>
         </section>
 
@@ -144,13 +144,12 @@ export default function PrivacyPolicyPage() {
         <section className="policy-section">
           <h2>10. Inquiries and Data Protection Contact</h2>
           <p>
-            For inquiries regarding this draft policy, data subject requests, or municipal privacy practices, please contact the MENR Office:
+            For inquiries regarding this draft policy, data subject requests, or municipal privacy practices, please visit the MENR Office in person during regular operating hours:
           </p>
           <div className="policy-contact-box">
             <strong>Municipal Environment and Natural Resources Office (MENR)</strong>
             <span>{MENR_OFFICE_INFO.address}</span>
             <span>Office Hours: {MENR_OFFICE_INFO.hours}</span>
-            <span>Official Email: {MENR_OFFICE_INFO.email}</span>
           </div>
         </section>
       </article>
@@ -160,7 +159,7 @@ export default function PrivacyPolicyPage() {
         <Link href="/support/faq" className="button secondary sm">
           ← Frequently Asked Questions
         </Link>
-        <Link href="/support/about" className="button green sm">
+        <Link href="/about" className="button green sm">
           About EcoGuard →
         </Link>
       </div>

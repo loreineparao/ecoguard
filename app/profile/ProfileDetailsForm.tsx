@@ -5,11 +5,6 @@ import { updateUserProfileDetails } from "@/app/actions/profile";
 import { MABINI_BARANGAYS } from "@/lib/mabini-constants";
 import { validatePhoneNumber } from "@/lib/validators";
 import {
-  User,
-  Mail,
-  Phone,
-  MapPin,
-  Home,
   Lock,
   Check,
   AlertCircle,
@@ -47,7 +42,6 @@ export default function ProfileDetailsForm({
   const [formSuccess, setFormSuccess] = useState("");
   const [isPending, startTransition] = useTransition();
 
-  const isVerifiedResident = userRole.toLowerCase().includes("resident") || userRole.toLowerCase().includes("admin");
 
   function validate() {
     const errors: Record<string, string> = {};

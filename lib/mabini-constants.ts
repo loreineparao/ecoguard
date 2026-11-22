@@ -45,7 +45,6 @@ export const MENR_OFFICE_INFO = {
   name: "Municipal Environment and Natural Resources Office (MENR)",
   lgu: "Municipality of Mabini, Province of Batangas",
   address: "Municipal Hall Complex, F. Castillo Blvd., Poblacion, Mabini, Batangas 4202",
-  hours: "Monday – Friday: 8:00 AM – 5:00 PM (excluding public holidays)",
-  email: "menr@mabini.gov.ph",
-  emergencyNote: "For immediate environmental hazards or emergency waste situations, contact the Municipal Disaster Risk Reduction & Management Office (MDRRMO) or visit the MENR Office in person.",
+  hours: "Monday–Thursday: 8:00 AM – 6:00 PM",
+  emergencyNote: "For immediate environmental hazards or emergency waste situations, contact the Municipal Disaster Risk Reduction & Management Office (MDRRMO) or visit the MENR Office in person during operating hours.",
 };

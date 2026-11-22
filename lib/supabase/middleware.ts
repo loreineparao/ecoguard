@@ -70,19 +70,44 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // 3. Admin routes require admin role
-    if (isAdminRoute) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .maybeSingle();
+    // 3. Prevent deleted accounts or stale sessions from accessing protected portal
+    if (user.user_metadata?.account_status === "deleted") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      url.searchParams.set("error", "Your account has been deleted and access is no longer permitted.");
+      const response = NextResponse.redirect(url);
+      request.cookies.getAll().forEach((c) => {
+        if (c.name.includes("sb-") || c.name.includes("auth")) {
+          response.cookies.delete(c.name);
+        }
+      });
+      return response;
+    }
 
-      if (profile?.role !== "admin") {
-        const url = request.nextUrl.clone();
-        url.pathname = "/dashboard";
-        return NextResponse.redirect(url);
-      }
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id, role, deletion_status")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (!profile || profile.deletion_status === "deleted") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      url.searchParams.set("error", "Your account has been deleted and access is no longer permitted.");
+      const response = NextResponse.redirect(url);
+      request.cookies.getAll().forEach((c) => {
+        if (c.name.includes("sb-") || c.name.includes("auth")) {
+          response.cookies.delete(c.name);
+        }
+      });
+      return response;
+    }
+
+    // 4. Admin routes require admin role
+    if (isAdminRoute && profile.role !== "admin") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
     }
   }
 

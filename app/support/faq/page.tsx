@@ -133,16 +133,16 @@ const FAQ_LIST: FAQItem[] = [
     question: "How can residents contact the MENR Office?",
     answer: (
       <div>
-        <p style={{ margin: "0 0 6px" }}>
-          <strong>Address:</strong> {MENR_OFFICE_INFO.address}
+        <p style={{ margin: "0 0 8px" }}>
+          Residents requiring assistance, document submission, or in-person consultation are encouraged to visit the MENR Office during regular operating hours:
         </p>
         <p style={{ margin: "0 0 6px" }}>
-          <strong>Hours:</strong> {MENR_OFFICE_INFO.hours}
+          <strong>Location:</strong> {MENR_OFFICE_INFO.address}
         </p>
         <p style={{ margin: "0 0 6px" }}>
-          <strong>Official Inquiries:</strong> {MENR_OFFICE_INFO.email}
+          <strong>Operating Hours:</strong> {MENR_OFFICE_INFO.hours}
         </p>
-        <p style={{ margin: "6px 0 0", color: "#92400E", fontSize: "12.5px" }}>
+        <p style={{ margin: "8px 0 0", color: "var(--text-secondary)", fontSize: "12.5px", lineHeight: 1.5 }}>
           {MENR_OFFICE_INFO.emergencyNote}
         </p>
       </div>

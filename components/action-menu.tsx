@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { MoreVertical } from "lucide-react";
+import { EllipsisVertical } from "lucide-react";
 
 export type ActionMenuItem = {
   id?: string;
@@ -17,6 +17,7 @@ export type ActionMenuProps = {
   ariaLabel?: string;
   className?: string;
   triggerClassName?: string;
+  triggerIcon?: ReactNode;
 };
 
 export default function ActionMenu({
@@ -24,6 +25,7 @@ export default function ActionMenu({
   ariaLabel = "Record actions",
   className = "",
   triggerClassName = "",
+  triggerIcon,
 }: ActionMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -85,7 +87,7 @@ export default function ActionMenu({
         aria-expanded={isOpen}
         title="More actions"
       >
-        <MoreVertical size={17} aria-hidden="true" />
+        {triggerIcon || <EllipsisVertical size={17} aria-hidden="true" />}
       </button>
 
       {isOpen && (

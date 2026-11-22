@@ -1,21 +1,13 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import AppShell from "@/components/app-shell";
-import ProfileAvatarEditor from "./ProfileAvatarEditor";
-import ProfileDetailsForm from "./ProfileDetailsForm";
+import ProfileReadOnlyCard from "./ProfileReadOnlyCard";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  ShieldCheck,
-  Settings,
-  HelpCircle,
-  Building2,
-  Lock,
-} from "lucide-react";
+import { ArrowLeft, Settings, HelpCircle, Lock } from "lucide-react";
 
 export const metadata = {
   title: "Profile Information | EcoGuard Resident Portal",
-  description: "View and edit your personal profile information, photo, and Mabini resident verification status.",
+  description: "View and edit your personal profile information, photo, and Mabini resident credentials.",
 };
 
 export default async function ProfilePage() {
@@ -41,6 +33,11 @@ export default async function ProfilePage() {
     .eq("id", user.id)
     .maybeSingle();
 
+  // If the profile is marked deleted or user metadata marks deletion, reject access
+  if (profile?.deletion_status === "deleted" || user.user_metadata?.account_status === "deleted") {
+    redirect("/login?error=" + encodeURIComponent("Your account has been deleted and access is no longer permitted."));
+  }
+
   const role = profile?.role === "admin" ? "Administrator" : "Resident";
   const name = profile?.full_name || user.user_metadata?.full_name || "EcoGuard Resident";
   const email = user.email || profile?.email || "";
@@ -64,7 +61,7 @@ export default async function ProfilePage() {
             <p className="eyebrow">{isAdmin ? "ADMIN WORKSPACE" : "RESIDENT PORTAL"}</p>
             <h1 className="page-title">Profile Information</h1>
             <p className="page-subtitle">
-              Manage your profile photo, personal information, and certified Mabini resident verification.
+              Manage your personal credentials, contact details, and registered Mabini residence.
             </p>
           </div>
           <div className="page-header-actions">
@@ -78,30 +75,22 @@ export default async function ProfilePage() {
         </div>
 
         <div className="settings-grid">
-          {/* Main Column: TikTok-styled Profile Editor */}
+          {/* Main Left Column: Read-Only Profile View with Three-Dot Edit Action */}
           <div className="settings-main-col">
-            <section className="card tiktok-profile-card">
-              {/* Centered Avatar with Camera Badge */}
-              <ProfileAvatarEditor
-                currentAvatarUrl={avatarUrl}
-                userName={name}
-              />
-
-              {/* Personal Information Rows & Verification Badge */}
-              <ProfileDetailsForm
-                initialFullName={name}
-                email={email}
-                initialBarangay={barangay}
-                initialAddress={address}
-                initialContactNumber={contactNumber}
-                userRole={role}
-              />
-            </section>
+            <ProfileReadOnlyCard
+              initialFullName={name}
+              email={email}
+              initialBarangay={barangay}
+              initialAddress={address}
+              initialContactNumber={contactNumber}
+              initialAvatarUrl={avatarUrl}
+              userRole={role}
+            />
           </div>
 
           {/* Right Column: Security & Support shortcuts */}
           <div className="settings-side-col">
-            {/* Quick Links Card */}
+            {/* Account Settings Card */}
             <div className="card" style={{ marginBottom: "16px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
                 <Settings size={17} style={{ color: "var(--primary-green)" }} />
@@ -120,7 +109,7 @@ export default async function ProfilePage() {
               </Link>
             </div>
 
-            {/* Support Hub Card */}
+            {/* Need Help? Card */}
             <div className="card">
               <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
                 <HelpCircle size={17} style={{ color: "var(--primary-green)" }} />

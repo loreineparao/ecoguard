@@ -86,6 +86,7 @@ export default async function DashboardPage() {
     supabase
       .from("collection_schedules")
       .select("id, barangay, collection_time, truck_id")
+      .gte("collection_time", new Date().toISOString())
       .order("collection_time", { ascending: true }),
   ]);
 
@@ -93,7 +94,14 @@ export default async function DashboardPage() {
 
   const complaintItems = (complaints ?? []) as Complaint[];
   const permitItems = (permits ?? []) as Permit[];
-  const scheduleItems = (schedules ?? []) as Schedule[];
+
+  // Upcoming collection schedules from Supabase (filtered >= current time and sorted ascending)
+  const scheduleItems = ((schedules ?? []) as Schedule[])
+    .filter((schedule) => Boolean(schedule.collection_time))
+    .sort(
+      (a, b) =>
+        new Date(a.collection_time).getTime() - new Date(b.collection_time).getTime()
+    );
 
   const name =
     profile?.full_name || user.user_metadata?.full_name || "Resident";
@@ -176,13 +184,13 @@ export default async function DashboardPage() {
         />
       </div>
 
-      {/* Content Grid: Recent Activity (Left) & Quick Actions + Schedules (Right Stack) */}
+      {/* Content Grid: Recent Activity (Left) & Garbage Collection Schedule + Quick Actions (Right Stack) */}
       <div className="content-grid">
-        {/* Left Column: Recent Complaint Activity */}
+        {/* Left Column: Recent Activity */}
         <section className="card">
           <div className="card-title">
             <div>
-              <h2>Recent Complaint Activity</h2>
+              <h2>Recent Activity</h2>
               <p className="hint">
                 Track status updates directly from the MENR Office.
               </p>
@@ -221,7 +229,12 @@ export default async function DashboardPage() {
                   </div>
                   <span className="activity-date">
                     {item.date
-                      ? new Date(item.date).toLocaleDateString()
+                      ? new Date(item.date).toLocaleDateString("en-PH", {
+                          timeZone: "Asia/Manila",
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })
                       : "Date unavailable"}
                   </span>
                   <span className={`badge ${statusClass(item.status)}`}>
@@ -238,9 +251,84 @@ export default async function DashboardPage() {
           )}
         </section>
 
-        {/* Right Column Stack: Quick Actions & Compact Schedule Preview */}
+        {/* Right Column Stack: Garbage Collection Schedule (top) & Quick Actions (bottom) */}
         <div className="dashboard-right-stack">
-          {/* Quick Actions */}
+          {/* Top: Compact Garbage Collection Schedule Preview */}
+          <section className="card dashboard-schedule-compact">
+            <div className="card-title">
+              <div>
+                <h2>Garbage Collection Schedule</h2>
+                <p className="hint">Next upcoming neighborhood pickups</p>
+              </div>
+              <Link className="text-link" href="/schedules">
+                View All <ArrowRight size={13} aria-hidden="true" />
+              </Link>
+            </div>
+
+            {schedulesError ? (
+              <div className="notice error" style={{ fontSize: "12.5px", padding: "12px" }}>
+                Unable to load collection schedules right now.
+              </div>
+            ) : scheduleItems.length === 0 ? (
+              <div className="empty-state" style={{ padding: "24px 16px", fontSize: "13px" }}>
+                No upcoming collection schedules found. Check back soon for the next municipal waste pickup.
+              </div>
+            ) : (
+              <div className="compact-schedule-list">
+                {scheduleItems.slice(0, 3).map((schedule) => (
+                  <div className="compact-schedule-item" key={schedule.id}>
+                    <div className="compact-schedule-header">
+                      <span className="compact-schedule-badge">
+                        <MapPin size={13} color="var(--primary-green)" aria-hidden="true" />
+                        <span>{schedule.barangay}</span>
+                      </span>
+                      {schedule.truck_id && (
+                        <span className="compact-schedule-truck">
+                          <Truck size={11} aria-hidden="true" />
+                          <span>{schedule.truck_id}</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="compact-schedule-meta">
+                      <span>
+                        <CalendarDays size={13} color="var(--primary-green)" aria-hidden="true" />
+                        <strong>
+                          {new Date(schedule.collection_time).toLocaleDateString("en-PH", {
+                            timeZone: "Asia/Manila",
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </strong>
+                      </span>
+                      <span>
+                        <Clock3 size={13} color="var(--primary-green)" aria-hidden="true" />
+                        <span>
+                          {new Date(schedule.collection_time).toLocaleTimeString("en-PH", {
+                            timeZone: "Asia/Manila",
+                            hour: "numeric",
+                            minute: "2-digit",
+                            hour12: true,
+                          })}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                ))}
+
+                <Link
+                  href="/schedules"
+                  className="compact-schedule-view-all-btn"
+                >
+                  <span>View Full Municipal Schedule</span>
+                  <ArrowRight size={13} aria-hidden="true" />
+                </Link>
+              </div>
+            )}
+          </section>
+
+          {/* Bottom: Quick Actions */}
           <aside className="card">
             <div className="card-title">
               <div>
@@ -283,72 +371,6 @@ export default async function DashboardPage() {
               </Link>
             </div>
           </aside>
-
-          {/* Compact Garbage Collection Schedule Preview */}
-          <section className="card dashboard-schedule-compact">
-            <div className="card-title" style={{ marginBottom: "12px" }}>
-              <div>
-                <h2 style={{ fontSize: "16px" }}>Garbage Collection Schedule</h2>
-                <p className="hint">Next upcoming neighborhood pickups</p>
-              </div>
-              <Link className="text-link" href="/schedules">
-                View All <ArrowRight size={13} aria-hidden="true" />
-              </Link>
-            </div>
-
-            {schedulesError ? (
-              <div className="notice error" style={{ fontSize: "12.5px", padding: "10px" }}>
-                Unable to load collection schedules right now.
-              </div>
-            ) : scheduleItems.length === 0 ? (
-              <div className="empty-state" style={{ padding: "20px 14px", fontSize: "13px" }}>
-                No collection schedules are published yet. Check back soon.
-              </div>
-            ) : (
-              <div className="compact-schedule-list">
-                {scheduleItems.slice(0, 3).map((schedule) => (
-                  <div className="compact-schedule-item" key={schedule.id}>
-                    <div className="compact-schedule-header">
-                      <span className="compact-schedule-badge">
-                        <MapPin size={13} color="var(--primary-green)" aria-hidden="true" />
-                        <span>{schedule.barangay}</span>
-                      </span>
-                      {schedule.truck_id && (
-                        <span className="compact-schedule-truck">
-                          <Truck size={11} aria-hidden="true" />
-                          <span>{schedule.truck_id}</span>
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="compact-schedule-meta">
-                      <span>
-                        <CalendarDays size={13} color="var(--primary-green)" aria-hidden="true" />
-                        <strong>{new Date(schedule.collection_time).toLocaleDateString()}</strong>
-                      </span>
-                      <span>
-                        <Clock3 size={13} color="var(--primary-green)" aria-hidden="true" />
-                        <span>
-                          {new Date(schedule.collection_time).toLocaleTimeString([], {
-                            hour: "numeric",
-                            minute: "2-digit",
-                          })}
-                        </span>
-                      </span>
-                    </div>
-                  </div>
-                ))}
-
-                <Link
-                  href="/schedules"
-                  className="compact-schedule-view-all-btn"
-                >
-                  <span>View Full Municipal Schedule</span>
-                  <ArrowRight size={13} aria-hidden="true" />
-                </Link>
-              </div>
-            )}
-          </section>
         </div>
       </div>
     </AppShell>

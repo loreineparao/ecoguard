@@ -77,7 +77,17 @@ export default function AppShell({
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
-  const [currentAvatar, setCurrentAvatar] = useState<string | null>(avatarUrl || null);
+  const [currentAvatar, setCurrentAvatar] = useState<string | null>(() => {
+    if (avatarUrl) return avatarUrl;
+    if (typeof window !== "undefined") {
+      try {
+        return localStorage.getItem("ecoguard_cached_avatar");
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
   const [prevAvatarProp, setPrevAvatarProp] = useState<string | null>(avatarUrl || null);
 
   if (prevAvatarProp !== (avatarUrl || null)) {
@@ -92,17 +102,46 @@ export default function AppShell({
     }
   }
 
-  useEffect(() => {
-    // Check localStorage cache if avatarUrl wasn't passed initially
-    if (!currentAvatar && typeof window !== "undefined") {
+  const [currentName, setCurrentName] = useState<string>(() => {
+    if (userName) return userName;
+    if (typeof window !== "undefined") {
       try {
-        const cached = localStorage.getItem("ecoguard_cached_avatar");
-        if (cached) setCurrentAvatar(cached);
+        return localStorage.getItem("ecoguard_cached_name") || userName;
       } catch {
-        // Ignore storage errors
+        return userName;
       }
     }
+    return userName;
+  });
+  const [prevNameProp, setPrevNameProp] = useState<string>(userName);
 
+  if (prevNameProp !== userName) {
+    setPrevNameProp(userName);
+    setCurrentName(userName);
+  }
+
+  useEffect(() => {
+    function handleProfileUpdate(e: Event) {
+      const customEvent = e as CustomEvent<{ fullName?: string; name?: string }>;
+      const nextName = customEvent.detail?.fullName || customEvent.detail?.name;
+      if (nextName) {
+        setCurrentName(nextName);
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem("ecoguard_cached_name", nextName);
+          } catch {
+            // Ignore
+          }
+        }
+      }
+    }
+    window.addEventListener("ecoguard:profile-updated", handleProfileUpdate);
+    return () => {
+      window.removeEventListener("ecoguard:profile-updated", handleProfileUpdate);
+    };
+  }, []);
+
+  useEffect(() => {
     function handleAvatarUpdate(e: Event) {
       const customEvent = e as CustomEvent<{ avatarUrl?: string | null }>;
       if (customEvent.detail !== undefined) {
@@ -365,12 +404,12 @@ export default function AppShell({
             >
               <Avatar
                 src={currentAvatar}
-                name={userName}
+                name={currentName}
                 size={34}
                 className="user-menu-avatar"
               />
               <span className="user-copy">
-                <strong>{userName || "EcoGuard Resident"}</strong>
+                <strong>{currentName || "EcoGuard Resident"}</strong>
                 <small>
                   {email || (mode === "admin" ? "Administrator" : "Resident")}
                 </small>
@@ -397,13 +436,13 @@ export default function AppShell({
                   <div className="profile-dropdown-header">
                     <Avatar
                       src={currentAvatar}
-                      name={userName}
+                      name={currentName}
                       size={44}
                       className="profile-dropdown-avatar-img"
                     />
                     <div className="profile-dropdown-info">
                       <strong className="profile-dropdown-name">
-                        {userName || (mode === "admin" ? "Administrator" : "EcoGuard Resident")}
+                        {currentName || (mode === "admin" ? "Administrator" : "EcoGuard Resident")}
                       </strong>
                       <span className="profile-dropdown-email" title={email || ""}>
                         {email || "Registered Resident"}

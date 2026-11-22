@@ -1,132 +1,149 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { deleteOwnAccount } from "@/app/actions/delete-account";
+import { createClient } from "@/lib/supabase/client";
 import {
-  submitAccountDeletionRequest,
-  cancelAccountDeletionRequest,
-} from "@/app/actions/profile";
-import {
-  AlertTriangle,
   Trash2,
+  AlertTriangle,
+  AlertCircle,
   Eye,
   EyeOff,
   LoaderCircle,
-  AlertCircle,
-  ShieldAlert,
   CheckCircle2,
-  XCircle,
+  ArrowRight,
+  ArrowLeft,
+  X,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 type DeleteAccountSectionProps = {
   userRole: string;
-  initialDeletionStatus?: string | null;
+  userEmail: string;
 };
+
+const REASON_OPTIONS = [
+  "I no longer need EcoGuard.",
+  "I have privacy concerns.",
+  "I created another account.",
+  "I experienced technical problems.",
+  "Other (optional explanation)",
+] as const;
 
 export default function DeleteAccountSection({
   userRole,
-  initialDeletionStatus = null,
+  userEmail,
 }: DeleteAccountSectionProps) {
   const router = useRouter();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const isAdmin = userRole.toLowerCase().includes("admin");
+
+  // Modal State: 1 = Warning, 2 = Reason, 3 = Confirm Identity & Delete
+  const [isOpen, setIsOpen] = useState(false);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+
+  // Form inputs
+  const [selectedReason, setSelectedReason] = useState<string>("");
+  const [otherText, setOtherText] = useState("");
   const [password, setPassword] = useState("");
-  const [reason, setReason] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [confirmedCheck, setConfirmedCheck] = useState(false);
+
+  // Submission & Feedback
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-  const [isPendingCancel, startCancelTransition] = useTransition();
 
-  const [deletionStatus, setDeletionStatus] = useState<string | null>(
-    initialDeletionStatus
-  );
-
-  const isAdmin = userRole.toLowerCase().includes("admin");
-
-  async function handleConfirmDelete(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  function openModal() {
+    setIsOpen(true);
+    setStep(1);
+    setSelectedReason("");
+    setOtherText("");
+    setPassword("");
+    setShowPassword(false);
     setError("");
     setSuccess("");
+  }
 
-    if (!password) {
-      setError("Password confirmation is required to verify your identity.");
-      return;
-    }
+  function closeModal() {
+    if (loading) return; // Prevent closing mid-deletion
+    setIsOpen(false);
+    setStep(1);
+    setPassword("");
+    setError("");
+  }
 
-    if (!confirmedCheck) {
-      setError("Please check the confirmation box acknowledging records retention.");
+  // Final Action: Permanently Delete My Account
+  async function handlePermanentDelete() {
+    setError("");
+    const cleanPassword = password.trim();
+
+    if (!cleanPassword) {
+      setError("Please enter your current password to confirm your identity.");
       return;
     }
 
     setLoading(true);
 
     try {
-      const result = await submitAccountDeletionRequest(password, reason);
+      const finalReason =
+        selectedReason === "Other (optional explanation)"
+          ? otherText.trim() || "Other reason"
+          : selectedReason;
+
+      const result = await deleteOwnAccount({
+        password: cleanPassword,
+        reason: finalReason,
+        reasonOther: otherText.trim(),
+      });
 
       if (!result.success) {
-        setError(result.error || "Unable to submit account deletion request.");
+        setError(result.error || "Unable to complete account deletion.");
         setLoading(false);
         return;
       }
 
-      setDeletionStatus("pending");
-      setIsModalOpen(false);
-      setPassword("");
-      setReason("");
-      setConfirmedCheck(false);
-      setSuccess(
-        "Your account deletion request has been submitted for MENR review. Certain records are retained under municipal audit policies."
-      );
-      setLoading(false);
-      router.refresh();
+      setSuccess("Account successfully deleted. Clearing session and redirecting...");
+
+      // Global client-side session cleanup
+      try {
+        const supabase = createClient();
+        await supabase.auth.signOut({ scope: "global" });
+      } catch {
+        // Fallback if network drops
+      }
+
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.clear();
+          sessionStorage.clear();
+        } catch {
+          // Ignore storage quota errors
+        }
+      }
+
+      router.push(result.redirectUrl || "/login?notice=account_deleted");
     } catch {
-      setError("An unexpected error occurred while processing your request.");
+      setError("A connection error occurred while deleting your account. Please try again.");
       setLoading(false);
     }
   }
 
-  function handleCancelRequest() {
-    setError("");
-    setSuccess("");
-    startCancelTransition(async () => {
-      const res = await cancelAccountDeletionRequest();
-      if (!res.success) {
-        setError(res.error || "Unable to cancel deletion request.");
-        return;
-      }
-      setDeletionStatus(null);
-      setSuccess("Your account deletion request has been successfully cancelled.");
-      router.refresh();
-    });
-  }
-
   return (
-    <div className="settings-danger-card">
+    <div className="settings-section-card">
       <div className="settings-section-header">
-        <div className="settings-danger-icon">
+        <div
+          className="settings-section-icon"
+          style={{
+            backgroundColor: "#FEE2E2",
+            color: "#DC2626",
+          }}
+        >
           <Trash2 size={18} aria-hidden="true" />
         </div>
         <div>
-          <h3 style={{ color: "#B91C1C" }}>Delete Account</h3>
+          <h3 style={{ color: "#B91C1C", margin: 0 }}>Delete Account</h3>
           <p className="hint">
-            You may request the deletion of your EcoGuard account. Certain complaint, permit, and official transaction records may need to be retained in accordance with applicable LGU policies and legal requirements.
+            Permanently delete your EcoGuard account and remove your access to the Resident Portal.
           </p>
-        </div>
-      </div>
-
-      {/* Municipal Records Retention Notice */}
-      <div className="retention-policy-box">
-        <div style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
-          <ShieldAlert size={16} style={{ color: "#B45309", flexShrink: 0, marginTop: "2px" }} />
-          <div>
-            <strong style={{ display: "block", color: "#92400E", fontSize: "12.5px", marginBottom: "4px" }}>
-              Municipal Data Retention &amp; Legal Compliance Notice
-            </strong>
-            <p style={{ margin: 0, fontSize: "12px", color: "#78350F", lineHeight: 1.5 }}>
-              In accordance with Philippine Republic Act No. 9003 (Ecological Solid Waste Management Act) and Presidential Decree No. 705 (Revised Forestry Code), all submitted environmental complaints, field inspection reports, and tree cutting permits are classified as official municipal records of Mabini, Batangas. Submitting a deletion request revokes resident portal credentials upon MENR review while legally mandating the non-destructive retention of historical public records.
-            </p>
-          </div>
         </div>
       </div>
 
@@ -145,202 +162,301 @@ export default function DeleteAccountSection({
         </div>
       )}
 
-      {/* Pending Request Status Banner */}
-      {deletionStatus === "pending" && (
-        <div
-          style={{
-            background: "#FFFBEB",
-            border: "1px solid #FCD34D",
-            borderRadius: "10px",
-            padding: "14px 16px",
-            marginTop: "14px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            gap: "12px",
-          }}
-        >
-          <div>
-            <strong style={{ color: "#92400E", fontSize: "13px", display: "block" }}>
-              Account Deletion Request Pending MENR Review
-            </strong>
-            <span style={{ color: "#B45309", fontSize: "12px" }}>
-              Your deletion request has been received. Your portal access remains active until the municipal officer concludes the audit review.
-            </span>
-          </div>
-
+      {/* Trigger Button */}
+      {isAdmin ? (
+        <div className="notice warning sm" style={{ marginTop: "14px" }}>
+          Administrator accounts cannot be self-deleted through this portal. Please contact the Municipal Human Resources Office or Municipal IT Administrator for credential decommissioning.
+        </div>
+      ) : (
+        <div style={{ marginTop: "14px" }}>
           <button
             type="button"
-            className="button secondary sm"
-            onClick={handleCancelRequest}
-            disabled={isPendingCancel}
+            className="button danger-outline sm"
+            onClick={openModal}
+            aria-haspopup="dialog"
+            style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
           >
-            {isPendingCancel ? (
-              <LoaderCircle className="spin" size={13} aria-hidden="true" />
-            ) : (
-              <XCircle size={13} aria-hidden="true" />
-            )}
-            Cancel Request
+            <Trash2 size={14} aria-hidden="true" /> Delete Account
           </button>
         </div>
       )}
 
-      {isAdmin ? (
-        <div className="notice warning sm" style={{ marginTop: "14px" }}>
-          Administrator accounts cannot be self-deleted. Contact the Municipal Human Resources Office or Municipal Information Officer for credential decommissioning.
-        </div>
-      ) : (
-        deletionStatus !== "pending" && (
-          <div style={{ marginTop: "14px" }}>
-            <button
-              type="button"
-              className="button danger-outline sm"
-              onClick={() => {
-                setIsModalOpen(true);
-                setError("");
-                setPassword("");
-                setReason("");
-                setConfirmedCheck(false);
-              }}
-            >
-              <Trash2 size={14} aria-hidden="true" /> Request Account Deletion
-            </button>
-          </div>
-        )
-      )}
+      {/* Multi-Step Deletion Confirmation Dialog */}
+      {isOpen && (
+        <div
+          className="modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="deletion-modal-title"
+        >
+          <div className="modal-card" style={{ maxWidth: "500px", position: "relative" }}>
+            
+            {/* Modal Top Header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div
+                  style={{
+                    width: "36px",
+                    height: "36px",
+                    borderRadius: "50%",
+                    background: "#FEE2E2",
+                    color: "#DC2626",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <AlertTriangle size={18} aria-hidden="true" />
+                </div>
+                <div>
+                  <h3 id="deletion-modal-title" style={{ margin: 0, fontSize: "16px", color: "#991B1B" }}>
+                    Delete Account
+                  </h3>
+                  <span style={{ fontSize: "11.5px", color: "var(--text-secondary)" }}>
+                    Step {step} of 3 &bull; {step === 1 ? "Permanent Warning" : step === 2 ? "Reason for Leaving" : "Confirm Identity"}
+                  </span>
+                </div>
+              </div>
 
-      {/* Confirmation Dialog / Modal */}
-      {isModalOpen && (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-          <div className="modal-card" style={{ maxWidth: "480px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
-              <div
+              <button
+                type="button"
+                onClick={closeModal}
+                disabled={loading}
+                aria-label="Close dialog"
                 style={{
-                  width: "40px",
-                  height: "40px",
-                  borderRadius: "50%",
-                  background: "#FEE2E2",
-                  color: "#DC2626",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
+                  background: "transparent",
+                  border: "none",
+                  cursor: loading ? "not-allowed" : "pointer",
+                  color: "var(--text-secondary)",
+                  padding: "4px",
+                  borderRadius: "4px",
                 }}
               >
-                <AlertTriangle size={20} aria-hidden="true" />
-              </div>
-              <div>
-                <h3 id="modal-title" style={{ margin: 0, fontSize: "16px", color: "var(--dark-forest)" }}>
-                  Request Account Deletion
-                </h3>
-                <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
-                  Review by MENR Mabini required prior to credential removal.
-                </span>
-              </div>
+                <X size={18} />
+              </button>
             </div>
 
-            <p style={{ fontSize: "13px", color: "var(--text-secondary)", lineHeight: 1.5, margin: "0 0 14px" }}>
-              Submitting this request alerts the MENR Office to review your account. Once approved, your login credentials will be revoked. In accordance with municipal environmental policies, past complaints and permits remain on record.
-            </p>
-
-            <form onSubmit={handleConfirmDelete} noValidate>
-              {/* Optional Reason */}
-              <div className="form-field" style={{ marginBottom: "12px" }}>
-                <label htmlFor="deletion-reason">
-                  Reason for Deletion <span className="hint" style={{ fontSize: "11px" }}>(Optional)</span>
-                </label>
-                <input
-                  id="deletion-reason"
-                  type="text"
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder="e.g., Relocated outside Mabini, no longer needed"
-                  disabled={loading}
-                  maxLength={150}
-                />
+            {/* Error in modal */}
+            {error && (
+              <div className="notice error sm" role="alert" style={{ marginBottom: "16px" }}>
+                <AlertCircle size={14} style={{ display: "inline-block", marginRight: "6px" }} />
+                {error}
               </div>
+            )}
 
-              {/* Password Verification */}
-              <div className="form-field">
-                <label htmlFor="deletion-password">
-                  Confirm Password to Verify Identity <span aria-hidden="true">*</span>
-                </label>
-                <div className="password-input-wrap">
-                  <input
-                    id="deletion-password"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      if (error) setError("");
-                    }}
-                    placeholder="Enter your current account password"
-                    autoComplete="current-password"
-                    disabled={loading}
-                    required
-                  />
+            {/* STEP 1 — Delete Account & Permanent Warning */}
+            {step === 1 && (
+              <div>
+                <p style={{ fontSize: "13.5px", color: "var(--dark-forest)", lineHeight: 1.6, margin: "0 0 14px" }}>
+                  Are you sure you want to delete your EcoGuard resident account? This action is permanent and cannot be reversed.
+                </p>
+
+                <div
+                  style={{
+                    background: "#FEF2F2",
+                    border: "1px solid #FECACA",
+                    borderRadius: "10px",
+                    padding: "14px 16px",
+                    marginBottom: "16px",
+                    fontSize: "12.5px",
+                    color: "#991B1B",
+                    lineHeight: 1.55,
+                  }}
+                >
+                  <p style={{ margin: "0 0 6px 0", fontWeight: 700 }}>Information Treatment:</p>
+                  <ul style={{ margin: 0, paddingLeft: "18px" }}>
+                    <li>
+                      <strong>Personal Information Deleted:</strong> Your login credentials, session, profile contact
+                      numbers, address, and uploaded profile avatars will be permanently deleted.
+                    </li>
+                    <li style={{ marginTop: "4px" }}>
+                      <strong>Official Records Retained:</strong> Under municipal records management and environmental
+                      policies, submitted environmental complaints, violation photos, and tree-cutting permit records
+                      must be retained for public administration and will be anonymized.
+                    </li>
+                  </ul>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "20px" }}>
                   <button
                     type="button"
-                    className="password-toggle-btn"
-                    onClick={() => setShowPassword((p) => !p)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    className="button secondary sm"
+                    onClick={closeModal}
                   >
-                    {showPassword ? <Eye size={17} aria-hidden="true" /> : <EyeOff size={17} aria-hidden="true" />}
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="button danger sm"
+                    onClick={() => {
+                      setError("");
+                      setStep(2);
+                    }}
+                  >
+                    Continue <ArrowRight size={14} aria-hidden="true" />
                   </button>
                 </div>
               </div>
+            )}
 
-              {/* Mandatory Checkbox */}
-              <div style={{ margin: "14px 0" }}>
-                <label style={{ display: "flex", gap: "10px", alignItems: "flex-start", cursor: "pointer", fontSize: "12.5px" }}>
-                  <input
-                    type="checkbox"
-                    checked={confirmedCheck}
-                    onChange={(e) => {
-                      setConfirmedCheck(e.target.checked);
-                      if (error) setError("");
+            {/* STEP 2 — Reason for Leaving (Optional) */}
+            {step === 2 && (
+              <div>
+                <p style={{ fontSize: "13.5px", fontWeight: 600, color: "var(--dark-forest)", margin: "0 0 4px" }}>
+                  Why are you deleting your account?
+                </p>
+                <p style={{ fontSize: "12px", color: "var(--text-secondary)", margin: "0 0 14px" }}>
+                  This step is optional. You may select a reason or skip directly to identity confirmation.
+                </p>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "14px" }}>
+                  {REASON_OPTIONS.map((opt) => (
+                    <label
+                      key={opt}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        padding: "8px 12px",
+                        borderRadius: "8px",
+                        border: "1px solid var(--border)",
+                        background: selectedReason === opt ? "var(--light-green)" : "var(--surface)",
+                        cursor: "pointer",
+                        fontSize: "12.5px",
+                        color: "var(--text-main)",
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="deletion-reason"
+                        value={opt}
+                        checked={selectedReason === opt}
+                        onChange={(e) => setSelectedReason(e.target.value)}
+                      />
+                      <span>{opt}</span>
+                    </label>
+                  ))}
+                </div>
+
+                {selectedReason === "Other (optional explanation)" && (
+                  <div className="form-field" style={{ marginBottom: "14px" }}>
+                    <label htmlFor="other-explanation-input" style={{ fontSize: "12px" }}>
+                      Optional Explanation:
+                    </label>
+                    <input
+                      id="other-explanation-input"
+                      type="text"
+                      value={otherText}
+                      onChange={(e) => setOtherText(e.target.value)}
+                      placeholder="Share additional context if you wish"
+                      maxLength={150}
+                      autoFocus
+                    />
+                  </div>
+                )}
+
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", marginTop: "20px" }}>
+                  <button
+                    type="button"
+                    className="button secondary sm"
+                    onClick={() => {
+                      setError("");
+                      setStep(1);
+                    }}
+                  >
+                    <ArrowLeft size={14} aria-hidden="true" /> Back
+                  </button>
+                  <button
+                    type="button"
+                    className="button danger sm"
+                    onClick={() => {
+                      setError("");
+                      setStep(3);
+                    }}
+                  >
+                    Continue <ArrowRight size={14} aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3 — Confirm Identity & Final Deletion */}
+            {step === 3 && (
+              <div>
+                <p style={{ fontSize: "13px", color: "var(--dark-forest)", margin: "0 0 12px" }}>
+                  Account deletion is permanent. To confirm your identity and authorize the permanent deletion of your
+                  account (<strong>{userEmail}</strong>), please enter your current password:
+                </p>
+
+                <div className="form-field" style={{ marginBottom: "16px" }}>
+                  <label htmlFor="modal-identity-password">
+                    Current Password <span aria-hidden="true">*</span>
+                  </label>
+                  <div className="password-input-wrap">
+                    <input
+                      id="modal-identity-password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (error) setError("");
+                      }}
+                      placeholder="Enter your current password"
+                      autoComplete="current-password"
+                      disabled={loading}
+                      required
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      className="password-toggle-btn"
+                      onClick={() => setShowPassword((p) => !p)}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <Eye size={17} /> : <EyeOff size={17} />}
+                    </button>
+                  </div>
+                  <p className="hint" style={{ fontSize: "11px", marginTop: "4px" }}>
+                    Identity verification is processed securely through Supabase Authentication. Passwords are never logged or stored.
+                  </p>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "10px", marginTop: "20px" }}>
+                  <button
+                    type="button"
+                    className="button secondary sm"
+                    onClick={() => {
+                      if (!loading) {
+                        setError("");
+                        setStep(2);
+                      }
                     }}
                     disabled={loading}
-                    style={{ width: "16px", height: "16px", marginTop: "2px", flexShrink: 0 }}
-                  />
-                  <span style={{ color: "var(--text-main)", lineHeight: 1.4 }}>
-                    I understand that my account deletion request will be submitted for MENR review, and that official transaction and environmental complaint records will be retained pursuant to municipal governance laws.
-                  </span>
-                </label>
-              </div>
-
-              {error && (
-                <div className="notice error sm" role="alert" style={{ marginBottom: "14px" }}>
-                  <AlertCircle size={14} style={{ display: "inline-block", marginRight: "6px" }} />
-                  {error}
+                  >
+                    <ArrowLeft size={14} aria-hidden="true" /> Back
+                  </button>
+                  <button
+                    type="button"
+                    className="button danger sm"
+                    onClick={handlePermanentDelete}
+                    disabled={loading || !password.trim()}
+                    style={{ backgroundColor: "#DC2626", borderColor: "#DC2626", color: "#FFFFFF" }}
+                  >
+                    {loading ? (
+                      <>
+                        <LoaderCircle className="spin" size={14} aria-hidden="true" /> Deleting Account...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 size={14} aria-hidden="true" /> Permanently Delete My Account
+                      </>
+                    )}
+                  </button>
                 </div>
-              )}
-
-              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
-                <button
-                  type="button"
-                  className="button secondary sm"
-                  onClick={() => setIsModalOpen(false)}
-                  disabled={loading}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  type="submit"
-                  className="button danger sm"
-                  disabled={loading || !password || !confirmedCheck}
-                >
-                  {loading ? (
-                    <LoaderCircle className="spin" size={14} aria-hidden="true" />
-                  ) : (
-                    <Trash2 size={14} aria-hidden="true" />
-                  )}
-                  {loading ? "Submitting Request..." : "Request Account Deletion"}
-                </button>
               </div>
-            </form>
+            )}
+
           </div>
         </div>
       )}

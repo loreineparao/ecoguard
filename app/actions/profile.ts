@@ -49,8 +49,8 @@ export async function updateUserProfileDetails(data: ProfileUpdateData) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    return { success: false, error: "You must be signed in to update your profile." };
+  if (!user || user.user_metadata?.account_status === "deleted") {
+    return { success: false, error: "This account has been deleted and cannot be updated." };
   }
 
   // 1. Synchronize user_metadata in Supabase Auth first
