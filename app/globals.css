@@ -3994,7 +3994,7 @@ select:disabled,
 }
 
 .doc-upload-card {
-  background: var(--white);
+  background: var(--surface-alt);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 16px;
@@ -4009,7 +4009,7 @@ select:disabled,
 
 .doc-upload-card.has-file {
   border-color: #81C784;
-  background: #F9FDF9;
+  background: #F4FAF7;
 }
 
 .doc-upload-card.is-error {
@@ -4038,7 +4038,7 @@ select:disabled,
 
 .doc-upload-icon-box.has-file {
   background: #2E7D32;
-  color: var(--white);
+  color: #FFFFFF;
 }
 
 .doc-upload-details {
@@ -4079,7 +4079,7 @@ select:disabled,
 }
 
 .doc-upload-formats {
-  color: #64748B;
+  color: var(--text-secondary);
   font-size: 11.5px;
   margin: 0;
 }
@@ -4122,7 +4122,7 @@ select:disabled,
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  background: #F1F8F4;
+  background: #FFFFFF;
   border: 1px solid #C8E6C9;
   border-radius: 8px;
   padding: 9px 12px;
@@ -4231,6 +4231,210 @@ select:disabled,
   font-size: 12px;
   margin: 8px 0 0;
   font-weight: 500;
+}
+
+/* ============================================================================
+   Tree Cutting Permit Upload Containers — Dark Mode Overrides
+   ============================================================================ */
+[data-theme="dark"] .doc-upload-card,
+.dark .doc-upload-card {
+  background: #0B1C17;
+  border-color: #29453A;
+}
+
+[data-theme="dark"] .doc-upload-card:hover,
+.dark .doc-upload-card:hover {
+  border-color: rgba(16, 185, 129, 0.45);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="dark"] .doc-upload-card.has-file,
+.dark .doc-upload-card.has-file {
+  background: #0E241E;
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+[data-theme="dark"] .doc-upload-card.is-error,
+.dark .doc-upload-card.is-error {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: #EF4444;
+}
+
+[data-theme="dark"] .doc-upload-icon-box,
+.dark .doc-upload-icon-box {
+  background: var(--surface-elevated);
+  color: var(--emerald-green);
+}
+
+[data-theme="dark"] .doc-upload-icon-box.has-file,
+.dark .doc-upload-icon-box.has-file {
+  background: #059669;
+  color: #FFFFFF;
+}
+
+[data-theme="dark"] .doc-upload-title,
+.dark .doc-upload-title {
+  color: var(--text-main);
+}
+
+[data-theme="dark"] .doc-upload-desc,
+.dark .doc-upload-desc {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .doc-upload-formats,
+.dark .doc-upload-formats {
+  color: #8BA89D;
+}
+
+[data-theme="dark"] .doc-required-badge,
+.dark .doc-required-badge {
+  background: rgba(239, 68, 68, 0.18);
+  color: #FCA5A5;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+[data-theme="dark"] .doc-status-badge.uploaded,
+.dark .doc-status-badge.uploaded {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34D399;
+  border-color: rgba(16, 185, 129, 0.38);
+}
+
+[data-theme="dark"] .doc-status-badge.empty,
+.dark .doc-status-badge.empty {
+  background: rgba(148, 163, 184, 0.12);
+  color: #94A3B8;
+  border-color: rgba(148, 163, 184, 0.25);
+}
+
+[data-theme="dark"] .doc-upload-footer,
+.dark .doc-upload-footer {
+  border-top-color: var(--border);
+}
+
+[data-theme="dark"] .doc-selected-box,
+.dark .doc-selected-box {
+  background: var(--surface-elevated);
+  border-color: rgba(16, 185, 129, 0.28);
+}
+
+[data-theme="dark"] .doc-file-icon,
+.dark .doc-file-icon {
+  color: #34D399;
+}
+
+[data-theme="dark"] .doc-file-name,
+.dark .doc-file-name {
+  color: var(--text-main);
+}
+
+[data-theme="dark"] .doc-file-size,
+.dark .doc-file-size {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .doc-action-btn,
+.dark .doc-action-btn {
+  background: #13241F;
+  border-color: var(--border);
+  color: var(--text-main);
+}
+
+[data-theme="dark"] .doc-action-btn:hover,
+.dark .doc-action-btn:hover {
+  background: #204035;
+  border-color: var(--primary-green);
+  color: #FFFFFF;
+}
+
+[data-theme="dark"] .doc-action-btn.danger,
+.dark .doc-action-btn.danger {
+  color: #F87171;
+  border-color: rgba(239, 68, 68, 0.35);
+  background: transparent;
+}
+
+[data-theme="dark"] .doc-action-btn.danger:hover,
+.dark .doc-action-btn.danger:hover {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: #EF4444;
+  color: #FCA5A5;
+}
+
+[data-theme="dark"] .doc-picker-btn,
+.dark .doc-picker-btn {
+  background: var(--surface-elevated);
+  border-color: #3D5A4E;
+  color: var(--text-main);
+}
+
+[data-theme="dark"] .doc-picker-btn:hover,
+.dark .doc-picker-btn:hover {
+  border-color: var(--primary-green);
+  color: var(--primary-green);
+  background: rgba(16, 185, 129, 0.14);
+}
+
+[data-theme="dark"] .photo-grid-item,
+.dark .photo-grid-item {
+  background: var(--surface-elevated);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .photo-info-bar,
+.dark .photo-info-bar {
+  background: #13241F;
+  border-top-color: var(--border);
+}
+
+[data-theme="dark"] .photo-name,
+.dark .photo-name {
+  color: var(--text-main);
+}
+
+[data-theme="dark"] .photo-size,
+.dark .photo-size {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .photo-remove-btn,
+.dark .photo-remove-btn {
+  color: #94A3B8;
+}
+
+[data-theme="dark"] .photo-remove-btn:hover,
+.dark .photo-remove-btn:hover {
+  color: #F87171;
+  background: rgba(239, 68, 68, 0.18);
+}
+
+[data-theme="dark"] .preview-modal-dialog,
+.dark .preview-modal-dialog {
+  background: #10231D;
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .preview-modal-header,
+.dark .preview-modal-header {
+  background: var(--surface-elevated);
+  border-bottom-color: var(--border);
+}
+
+[data-theme="dark"] .preview-modal-title,
+.dark .preview-modal-title {
+  color: var(--text-main);
+}
+
+[data-theme="dark"] .preview-modal-close,
+.dark .preview-modal-close {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .preview-modal-close:hover,
+.dark .preview-modal-close:hover {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--text-main);
 }
 
 .notice.progress {
@@ -4916,13 +5120,19 @@ select:disabled,
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(6, 59, 46, 0.45);
-  backdrop-filter: blur(4px);
+  background: rgba(6, 59, 46, 0.52);
+  backdrop-filter: blur(5px);
   z-index: 2000;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
+}
+
+[data-theme="dark"] .modal-backdrop,
+.dark .modal-backdrop {
+  background: rgba(2, 10, 8, 0.82);
+  backdrop-filter: blur(6px);
 }
 
 .modal-card {
@@ -4933,6 +5143,289 @@ select:disabled,
   max-width: 460px;
   padding: 24px;
   animation: modalPopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ============================================================================
+   Account Deactivation Modal & Shared Modal Components
+   ============================================================================ */
+
+.modal-container,
+.deactivate-modal-container {
+  background: #FFFFFF;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 24px 48px rgba(6, 59, 46, 0.18), 0 4px 16px rgba(0, 0, 0, 0.08);
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  animation: modalPopIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  max-height: 90vh;
+}
+
+[data-theme="dark"] .modal-container,
+[data-theme="dark"] .deactivate-modal-container,
+.dark .modal-container,
+.dark .deactivate-modal-container {
+  background: #0E241E;
+  border-color: #29453A;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(16, 185, 129, 0.12);
+  color: var(--text-main);
+}
+
+.modal-header,
+.deactivate-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-alt);
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .modal-header,
+[data-theme="dark"] .deactivate-modal-header,
+.dark .modal-header,
+.dark .deactivate-modal-header {
+  background: var(--surface-elevated);
+  border-bottom-color: var(--border);
+}
+
+.deactivate-modal-title {
+  color: var(--dark-forest);
+  font-weight: 700;
+}
+
+[data-theme="dark"] .deactivate-modal-title,
+.dark .deactivate-modal-title {
+  color: var(--text-main);
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.modal-close-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: var(--text-main);
+}
+
+[data-theme="dark"] .modal-close-btn:hover,
+.dark .modal-close-btn:hover {
+  background: rgba(16, 185, 129, 0.12);
+  color: var(--text-main);
+}
+
+.modal-body,
+.deactivate-modal-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  flex: 1;
+  background: #FFFFFF;
+}
+
+[data-theme="dark"] .modal-body,
+[data-theme="dark"] .deactivate-modal-body,
+.dark .modal-body,
+.dark .deactivate-modal-body {
+  background: #0E241E;
+  color: var(--text-main);
+}
+
+.deactivate-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.deactivate-step-item {
+  color: var(--text-secondary);
+  transition: color 0.15s ease;
+}
+
+.deactivate-step-item.active {
+  color: #DC2626;
+  font-weight: 700;
+}
+
+[data-theme="dark"] .deactivate-step-item.active,
+.dark .deactivate-step-item.active {
+  color: #F87171;
+}
+
+.deactivate-step-arrow {
+  color: var(--border);
+}
+
+[data-theme="dark"] .deactivate-step-arrow,
+.dark .deactivate-step-arrow {
+  color: #4A6358;
+}
+
+/* Step 1 Warning Box */
+.deactivate-warning-box {
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+[data-theme="dark"] .deactivate-warning-box,
+.dark .deactivate-warning-box {
+  background: rgba(220, 38, 38, 0.14);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+.deactivate-warning-icon {
+  color: #DC2626;
+}
+
+[data-theme="dark"] .deactivate-warning-icon,
+.dark .deactivate-warning-icon {
+  color: #F87171;
+}
+
+.deactivate-warning-content {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.deactivate-warning-title {
+  color: #991B1B;
+  display: block;
+}
+
+[data-theme="dark"] .deactivate-warning-title,
+.dark .deactivate-warning-title {
+  color: #FCA5A5;
+}
+
+.deactivate-warning-list {
+  padding-left: 18px;
+  margin: 6px 0 0;
+  color: #7F1D1D;
+}
+
+[data-theme="dark"] .deactivate-warning-list,
+.dark .deactivate-warning-list {
+  color: #F3F4F6;
+}
+
+.deactivate-notice-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.deactivate-notice-text strong {
+  color: var(--text-main);
+}
+
+/* Step 2 Reason Options */
+.deactivate-step-prompt {
+  font-size: 13.5px;
+  color: var(--text-main);
+  margin-bottom: 14px;
+  font-weight: 500;
+}
+
+.deactivate-reason-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-main);
+  cursor: pointer;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  transition: all 0.15s ease;
+}
+
+.deactivate-reason-option:hover {
+  border-color: var(--primary-green);
+}
+
+.deactivate-reason-option.selected {
+  border-color: #DC2626;
+  background: #FEF2F2;
+}
+
+[data-theme="dark"] .deactivate-reason-option,
+.dark .deactivate-reason-option {
+  background: var(--surface-elevated);
+  border-color: var(--border);
+}
+
+[data-theme="dark"] .deactivate-reason-option:hover,
+.dark .deactivate-reason-option:hover {
+  border-color: rgba(16, 185, 129, 0.45);
+}
+
+[data-theme="dark"] .deactivate-reason-option.selected,
+.dark .deactivate-reason-option.selected {
+  border-color: #EF4444;
+  background: rgba(220, 38, 38, 0.16);
+}
+
+.deactivate-reason-textarea {
+  width: 100%;
+  font-size: 13px;
+}
+
+/* Step 3 Password & Confirm */
+.deactivate-password-label {
+  color: var(--text-main);
+}
+
+.deactivate-password-hint {
+  color: var(--text-secondary);
+}
+
+.deactivate-confirm-box {
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+[data-theme="dark"] .deactivate-confirm-box,
+.dark .deactivate-confirm-box {
+  background: rgba(220, 38, 38, 0.14);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+.deactivate-confirm-text {
+  font-size: 12.5px;
+  color: #7F1D1D;
+  line-height: 1.4;
+}
+
+[data-theme="dark"] .deactivate-confirm-text,
+.dark .deactivate-confirm-text {
+  color: #F3F4F6;
 }
 
 @keyframes modalPopIn {

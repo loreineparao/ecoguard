@@ -746,11 +746,12 @@ export default function NewPermitPage() {
                 style={{
                   fontFamily: "monospace",
                   fontSize: "12.5px",
-                  background: "#F1F5F9",
+                  background: "var(--surface-elevated, #F1F5F9)",
+                  border: "1px solid var(--border, #E2E8F0)",
                   padding: "8px 14px",
                   borderRadius: "6px",
                   display: "inline-block",
-                  color: "#334155",
+                  color: "var(--text-main, #334155)",
                   marginBottom: "24px",
                 }}
               >

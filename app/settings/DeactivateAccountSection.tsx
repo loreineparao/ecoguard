@@ -190,13 +190,13 @@ export default function DeactivateAccountSection({
       {/* Multi-Step Deactivation Modal */}
       {isOpen && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="deactivate-modal-title">
-          <div className="modal-container" style={{ maxWidth: "520px" }}>
-            <div className="modal-header">
+          <div className="modal-container deactivate-modal-container" style={{ maxWidth: "520px" }}>
+            <div className="modal-header deactivate-modal-header">
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <span style={{ color: "#DC2626", display: "inline-flex" }}>
                   <ShieldAlert size={20} aria-hidden="true" />
                 </span>
-                <h3 id="deactivate-modal-title" style={{ margin: 0, fontSize: "17px", color: "var(--dark-forest)" }}>
+                <h3 id="deactivate-modal-title" className="deactivate-modal-title" style={{ margin: 0, fontSize: "17px" }}>
                   Deactivate EcoGuard Account
                 </h3>
               </div>
@@ -211,31 +211,19 @@ export default function DeactivateAccountSection({
               </button>
             </div>
 
-            <div className="modal-body" style={{ padding: "20px 24px" }}>
+            <div className="modal-body deactivate-modal-body">
               {/* Stepper Indicator */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  marginBottom: "20px",
-                  paddingBottom: "12px",
-                  borderBottom: "1px solid var(--border)",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  color: "var(--text-secondary)",
-                }}
-              >
-                <span style={{ color: step === 1 ? "#DC2626" : "var(--text-secondary)" }}>
-                  1. Information & Notice
+              <div className="deactivate-stepper">
+                <span className={`deactivate-step-item ${step === 1 ? "active" : ""}`}>
+                  1. Information &amp; Notice
                 </span>
-                <span>→</span>
-                <span style={{ color: step === 2 ? "#DC2626" : "var(--text-secondary)" }}>
+                <span className="deactivate-step-arrow">→</span>
+                <span className={`deactivate-step-item ${step === 2 ? "active" : ""}`}>
                   2. Reason (Optional)
                 </span>
-                <span>→</span>
-                <span style={{ color: step === 3 ? "#DC2626" : "var(--text-secondary)" }}>
-                  3. Verify & Confirm
+                <span className="deactivate-step-arrow">→</span>
+                <span className={`deactivate-step-item ${step === 3 ? "active" : ""}`}>
+                  3. Verify &amp; Confirm
                 </span>
               </div>
 
@@ -249,20 +237,14 @@ export default function DeactivateAccountSection({
               {/* STEP 1: Explanatory Warning & Official Records Notice */}
               {step === 1 && (
                 <div>
-                  <div
-                    style={{
-                      background: "rgba(220, 38, 38, 0.06)",
-                      border: "1px solid rgba(220, 38, 38, 0.25)",
-                      borderRadius: "10px",
-                      padding: "14px",
-                      marginBottom: "16px",
-                    }}
-                  >
+                  <div className="deactivate-warning-box">
                     <div style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
-                      <AlertTriangle size={18} color="#DC2626" style={{ flexShrink: 0, marginTop: "2px" }} />
-                      <div style={{ fontSize: "13px", color: "var(--text-main)", lineHeight: 1.5 }}>
-                        <strong>What happens when you deactivate your account:</strong>
-                        <ul style={{ paddingLeft: "18px", margin: "8px 0 0" }}>
+                      <AlertTriangle size={18} className="deactivate-warning-icon" style={{ flexShrink: 0, marginTop: "2px" }} />
+                      <div className="deactivate-warning-content">
+                        <strong className="deactivate-warning-title">
+                          What happens when you deactivate your account:
+                        </strong>
+                        <ul className="deactivate-warning-list">
                           <li>Your portal access and active login sessions will be disabled immediately.</li>
                           <li>You will not be able to log in or file new environmental reports.</li>
                           <li>
@@ -273,7 +255,7 @@ export default function DeactivateAccountSection({
                     </div>
                   </div>
 
-                  <p style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: 1.5, margin: 0 }}>
+                  <p className="deactivate-notice-text">
                     <strong>Note:</strong> Deactivation disables your account access while preserving official municipal history. If you require formal privacy-related erasure under the Data Privacy Act of 2012 (RA 10173), please contact the MENR Office Data Protection Officer.
                   </p>
 
@@ -296,7 +278,7 @@ export default function DeactivateAccountSection({
               {/* STEP 2: Optional Reason for Leaving */}
               {step === 2 && (
                 <div>
-                  <p style={{ fontSize: "13.5px", color: "var(--text-main)", marginBottom: "14px" }}>
+                  <p className="deactivate-step-prompt">
                     Please let us know why you are deactivating your account (optional):
                   </p>
 
@@ -304,18 +286,7 @@ export default function DeactivateAccountSection({
                     {REASON_OPTIONS.map((opt) => (
                       <label
                         key={opt}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "10px",
-                          fontSize: "13px",
-                          color: "var(--text-main)",
-                          cursor: "pointer",
-                          padding: "8px 12px",
-                          borderRadius: "8px",
-                          border: selectedReason === opt ? "1px solid #DC2626" : "1px solid var(--border)",
-                          background: selectedReason === opt ? "rgba(220, 38, 38, 0.04)" : "transparent",
-                        }}
+                        className={`deactivate-reason-option ${selectedReason === opt ? "selected" : ""}`}
                       >
                         <input
                           type="radio"
@@ -332,12 +303,11 @@ export default function DeactivateAccountSection({
                   {selectedReason === "Other (optional explanation)" && (
                     <div style={{ marginBottom: "16px" }}>
                       <textarea
-                        className="input"
+                        className="input deactivate-reason-textarea"
                         rows={3}
                         placeholder="Please share details (optional)..."
                         value={otherText}
                         onChange={(e) => setOtherText(e.target.value)}
-                        style={{ width: "100%", fontSize: "13px" }}
                         maxLength={300}
                       />
                     </div>
@@ -370,6 +340,7 @@ export default function DeactivateAccountSection({
                   <div style={{ marginBottom: "16px" }}>
                     <label
                       htmlFor="deactivate-password"
+                      className="deactivate-password-label"
                       style={{ display: "block", fontSize: "13px", fontWeight: 600, marginBottom: "6px" }}
                     >
                       Current Password <span style={{ color: "#DC2626" }}>*</span>
@@ -399,20 +370,12 @@ export default function DeactivateAccountSection({
                         {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                       </button>
                     </div>
-                    <small style={{ color: "var(--text-secondary)", fontSize: "11.5px", marginTop: "4px", display: "block" }}>
+                    <small className="deactivate-password-hint" style={{ fontSize: "11.5px", marginTop: "4px", display: "block" }}>
                       Confirming your password verifies that you are the authorized resident for {userEmail}.
                     </small>
                   </div>
 
-                  <div
-                    style={{
-                      background: "rgba(220, 38, 38, 0.05)",
-                      border: "1px solid rgba(220, 38, 38, 0.2)",
-                      borderRadius: "8px",
-                      padding: "12px",
-                      marginBottom: "16px",
-                    }}
-                  >
+                  <div className="deactivate-confirm-box">
                     <label style={{ display: "flex", gap: "10px", alignItems: "flex-start", cursor: "pointer" }}>
                       <input
                         type="checkbox"
@@ -421,7 +384,7 @@ export default function DeactivateAccountSection({
                         disabled={loading}
                         style={{ marginTop: "3px" }}
                       />
-                      <span style={{ fontSize: "12.5px", color: "var(--text-main)", lineHeight: 1.4 }}>
+                      <span className="deactivate-confirm-text">
                         I understand that deactivating my account will disable my access to the Resident Portal and log me out.
                       </span>
                     </label>
